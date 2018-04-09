@@ -1,0 +1,15 @@
+_build
+.DS_Store
+deps
+ebin
+log
+*.beam
+*.mnesia
+*.swp*
+erl_crash.dump
+.eunit
+ext
+.rebar
+test/eunit/
+tags
+.c_build/

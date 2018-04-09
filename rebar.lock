@@ -1,0 +1,20 @@
+{"1.1.0",
+[{<<"base16">>,{pkg,<<"base16">>,<<"1.0.0">>},1},
+ {<<"bucs">>,{pkg,<<"bucs">>,<<"1.0.14">>},0},
+ {<<"eini">>,{pkg,<<"eini">>,<<"1.2.4">>},1},
+ {<<"erlcloud">>,{pkg,<<"erlcloud">>,<<"3.1.4">>},0},
+ {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
+ {<<"jsx">>,{pkg,<<"jsx">>,<<"2.8.0">>},1},
+ {<<"lager">>,{pkg,<<"lager">>,<<"3.5.2">>},0},
+ {<<"lhttpc">>,{pkg,<<"lhttpc">>,<<"1.5.4">>},1}]}.
+[
+{pkg_hash,[
+ {<<"base16">>, <<"283644E2B21BD5915ACB7178BED7851FB07C6E5749B8FAD68A53C501092176D9">>},
+ {<<"bucs">>, <<"E6D013183D3729B5ADFD2D1BA430CCF88D0BC0269AE4261363E2FCCDE1BB19AC">>},
+ {<<"eini">>, <<"ABD64A0533398A6D714D21219BB85F2D41FDB42665AC4080939B7BFA8E55F386">>},
+ {<<"erlcloud">>, <<"E96B70D563AFEBF7790176E64C2F59351DAAE3266E79AA7915B9986A2FDDDF00">>},
+ {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>},
+ {<<"jsx">>, <<"749BEC6D205C694AE1786D62CEA6CC45A390437E24835FD16D12D74F07097727">>},
+ {<<"lager">>, <<"614A8C8F67BF99B69EB264EA22121AD25511C055AAEC09B086773D5108C6767F">>},
+ {<<"lhttpc">>, <<"405E4F460D67FE8F43F0E6D64E4D168F8A5CFF3AD34D78114688753DAA80FBEB">>}]}
+].

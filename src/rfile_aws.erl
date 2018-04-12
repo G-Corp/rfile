@@ -299,11 +299,11 @@ get_prefix(#{path := Path}) ->
 
 get_aws_config(Options, Who) ->
   (case get_aws_credentials(Options, Who) of
-    undefined ->
-      #aws_config{};
-    #{access_key_id := AccessKeyID, secret_access_key := SecretAccessKey} ->
-      erlcloud_s3:new(AccessKeyID, SecretAccessKey)
-  end)#aws_config{s3_follow_redirect = true}.
+     #{access_key_id := AccessKeyID, secret_access_key := SecretAccessKey} ->
+       erlcloud_s3:new(AccessKeyID, SecretAccessKey);
+     _ ->
+       #aws_config{}
+   end)#aws_config{s3_follow_redirect = true}.
 
 get_aws_credentials(#{aws := Aws} = Options, Who) ->
   case maps:get(Who, Options, #{}) of

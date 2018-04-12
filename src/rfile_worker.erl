@@ -39,9 +39,9 @@ handle_cast(rm, #{args := #{provider := Provider, source := File}, options := #{
   gen_server:reply(From, {ok, self()}),
   terminate(Provider:rm(File, Options)),
   {noreply, State};
-handle_cast(copy, #{args := #{provider := Provider, source := Source, destination := Destination}, options := #{from := From} = Options} = State) ->
+handle_cast(cp, #{args := #{provider := Provider, source := Source, destination := Destination}, options := #{from := From} = Options} = State) ->
   gen_server:reply(From, {ok, self()}),
-  terminate(Provider:copy(Source, Destination, Options)),
+  terminate(Provider:cp(Source, Destination, Options)),
   {noreply, State}.
 
 % @hidden

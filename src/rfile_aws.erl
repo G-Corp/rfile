@@ -5,7 +5,7 @@
 -include_lib("erlcloud/include/erlcloud_aws.hrl").
 -export([
          ls/2
-         , copy/3
+         , cp/3
          , rm/2
         ]).
 
@@ -65,7 +65,7 @@ rm(File, Options) ->
       {error, cant_delete_bucket}
   end.
 
-copy(#{type := aws} = Source, #{type := aws} = Destination, Options) ->
+cp(#{type := aws} = Source, #{type := aws} = Destination, Options) ->
   case {get_aws_config(Options, source), get_aws_config(Options, destination)} of
     {AwsConfig, AwsConfig} ->
       case {rfile_utils:get_path_format(Source), rfile_utils:get_path_format(Destination)} of
@@ -81,7 +81,7 @@ copy(#{type := aws} = Source, #{type := aws} = Destination, Options) ->
     {_, _} ->
       {error, not_supported} % TODO copy from one AWS to an other
   end;
-copy(#{type := aws} = Source, #{type := fs} = Destination, Options) ->
+cp(#{type := aws} = Source, #{type := fs} = Destination, Options) ->
   AwsConfig = get_aws_config(Options, source),
   case rfile_utils:get_path_format(Source) of
     {directory, SourceBucket, SourceKey} ->
@@ -89,7 +89,7 @@ copy(#{type := aws} = Source, #{type := fs} = Destination, Options) ->
     {file, SourceBucket, SourceKey} ->
       copy_file_s3_to_fs(SourceBucket, SourceKey, rfile_utils:get_filepath(Destination), Options, AwsConfig)
   end;
-copy(#{type := fs} = Source, #{type := aws} = Destination, Options) ->
+cp(#{type := fs} = Source, #{type := aws} = Destination, Options) ->
   AwsConfig = get_aws_config(Options, destination),
   case rfile_utils:get_path_format(Destination) of
     {directory, DestinationBucket, DestinationKey} ->
@@ -97,7 +97,7 @@ copy(#{type := fs} = Source, #{type := aws} = Destination, Options) ->
     {file, DestinationBucket, DestinationKey} ->
       copy_file_fs_to_s3(rfile_utils:get_filepath(Source), DestinationBucket, DestinationKey, Options, AwsConfig)
   end;
-copy(_Source, _Destination, _Options) ->
+cp(_Source, _Destination, _Options) ->
   {error, not_supported}.
 
 % ---------------------------------------------------------------------------------------------------------------------

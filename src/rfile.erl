@@ -70,7 +70,7 @@ cp(Source, Destination, Options) ->
     {error, _Reason} = Error ->
       Error;
     Other ->
-      gen_server:call(rfile_workers_manager, {copy, Other, Options})
+      gen_server:call(rfile_workers_manager, {cp, Other, Options})
   end.
 
 -spec rm(Source::string() | binary(),

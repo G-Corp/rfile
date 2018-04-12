@@ -6,5 +6,5 @@
 -callback rm(File :: map(), Options :: rfile:options()) ->
   {ok, string()} | {error, term()}.
 
--callback copy(Spurce :: map(), Destination :: map(), Options :: rfile:options()) ->
+-callback cp(Spurce :: map(), Destination :: map(), Options :: rfile:options()) ->
   {ok, string()} | {error, term()}.

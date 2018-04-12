@@ -34,7 +34,7 @@ handle_call({Action, Args, Options}, From, State) ->
                                   from => From,
                                   action => Action,
                                   args => Args,
-                                  options => Options}}};
+                                  options => options_to_map(Options)}}};
     _Other ->
       {reply, {error, internal_error}, State}
   end;

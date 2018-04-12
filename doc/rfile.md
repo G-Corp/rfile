@@ -36,7 +36,27 @@ aws() = #{access_key_id =&gt; string(), secret_access_key =&gt; string()}
 
 
 <pre><code>
-options() = #{acl =&gt; <a href="#type-acl">acl()</a>, recursive =&gt; true | false, callback =&gt; fun((atom(), [string() | binary()], {ok | error, term()}) -&gt; ok), aws =&gt; <a href="#type-aws">aws()</a>, source =&gt; #{aws =&gt; <a href="#type-aws">aws()</a>}, destination =&gt; #{aws =&gt; <a href="#type-aws">aws()</a>}}
+options() = <a href="#type-options_map">options_map()</a> | <a href="#type-options_list">options_list()</a>
+</code></pre>
+
+
+
+
+### <a name="type-options_list">options_list()</a> ###
+
+
+<pre><code>
+options_list() = [{acl, <a href="#type-acl">acl()</a>} | {recursive, true | false} | {metadata, term()} | {callback, fun((atom(), [string() | binary()], {ok | error, term()}, term() | undefined) -&gt; ok)} | {aws, <a href="#type-aws">aws()</a>} | {source, [{aws, <a href="#type-aws">aws()</a>}]} | {destination, [{aws, <a href="#type-aws">aws()</a>}]}]
+</code></pre>
+
+
+
+
+### <a name="type-options_map">options_map()</a> ###
+
+
+<pre><code>
+options_map() = #{acl =&gt; <a href="#type-acl">acl()</a>, recursive =&gt; true | false, metadata =&gt; term(), callback =&gt; fun((atom(), [string() | binary()], {ok | error, term()}, term() | undefined) -&gt; ok), aws =&gt; <a href="#type-aws">aws()</a>, source =&gt; #{aws =&gt; <a href="#type-aws">aws()</a>}, destination =&gt; #{aws =&gt; <a href="#type-aws">aws()</a>}}
 </code></pre>
 
 <a name="index"></a>

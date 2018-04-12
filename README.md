@@ -18,9 +18,10 @@ rfile:rm(
   "s3://my_bucket/my_dir/",
   #{aws => #{access_key_id => "ABCDEFGHIJKLMNOPQRST",
              secret_access_key => "ABCDEFGHIJKLMNOPQRSTUVWXYZ+1234567890---"},
-    callback => fun(Action, Args, Response) ->
+    callback => fun(Action, Args, Response, Metadata) ->
                     io:format("~ts(~p) => ~p~n", [Action, Args, Response])
                 end,
+    metadata => {hello, world},
     recursive => true}).
 
 ```
@@ -33,9 +34,10 @@ rfile:cp(
   "s3://my_bucket/my_data/",
   #{aws => #{access_key_id => "ABCDEFGHIJKLMNOPQRST",
              secret_access_key => "ABCDEFGHIJKLMNOPQRSTUVWXYZ+1234567890---"},
-    callback => fun(Action, Args, Response) ->
+    callback => fun(Action, Args, Response, {UserId, UserName}) ->
                     io:format("~ts(~p) => ~p~n", [Action, Args, Response])
                 end,
+    metadata => {UserId, UserName},
     recursive => true}).
 
 ```
@@ -47,7 +49,7 @@ rfile:rm(
   "s3://my_bucket/my_dir/",
   #{aws => #{access_key_id => "ABCDEFGHIJKLMNOPQRST",
              secret_access_key => "ABCDEFGHIJKLMNOPQRSTUVWXYZ+1234567890---"},
-    callback => fun(Action, Args, Response) ->
+    callback => fun(Action, Args, Response, undefined) ->
                     io:format("~ts(~p) => ~p~n", [Action, Args, Response])
                 end}).
 

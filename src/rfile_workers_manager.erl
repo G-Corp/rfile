@@ -25,7 +25,7 @@ init(_Args) ->
 
 % @hidden
 handle_call({Action, Args, Options}, From, State) ->
-  case rfile_workers_sup:start_child(Args, Options#{from => From}) of
+  case rfile_workers_sup:start_child(Args, (options_to_map(Options))#{from => From}) of
     {ok, Child} ->
       Ref = erlang:monitor(process, Child),
       ok = gen_server:cast(Child, Action),
@@ -82,7 +82,7 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
-apply_callback(#{options := #{callback := Callback},
+apply_callback(#{options := #{callback := Callback} = Options,
                  response := Response,
                  action := Action,
                  args := #{source := #{file := SrcFile}} = Args}) ->
@@ -95,6 +95,12 @@ apply_callback(#{options := #{callback := Callback},
        _ ->
          [SrcFile]
      end,
-     Response]);
+     Response,
+     maps:get(metadata, Options, undefined)]);
 apply_callback(_WorkerInfos) ->
   ok.
+
+options_to_map(Options) when is_map(Options) ->
+  Options;
+options_to_map(Options) when is_list(Options) ->
+  bucmaps:from_list(Options).

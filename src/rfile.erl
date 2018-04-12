@@ -24,11 +24,12 @@
 
 -type acl() :: private | public_read | public_read_write | authenticated_read | bucket_owner_read | bucket_owner_full_control.
 
--type options() :: #{% AWS
+-type options_map() :: #{% AWS
         acl => acl(),
         % common
         recursive => true | false,
-        callback => fun((atom(), [string() | binary()], {ok | error, term()}) -> ok),
+        metadata => term(),
+        callback => fun((atom(), [string() | binary()], {ok | error, term()}, term() | undefined) -> ok),
                       % Auth
                       aws => aws(),
                       source => #{
@@ -38,6 +39,18 @@
                         aws => aws()
                        }
                     }.
+
+-type options_list() :: [
+                         {acl, acl()}
+                         | {recursive, true | false}
+                         | {metadata, term()}
+                         | {callback, fun((atom(), [string() | binary()], {ok | error, term()}, term() | undefined) -> ok)}
+                         | {aws, aws()}
+                         | {source, [{aws, aws()}]}
+                         | {destination, [{aws, aws()}]}
+                        ].
+
+-type options() :: options_map() | options_list().
 
 -spec ls(Source::string() | binary(),
          Options::options()) -> {ok, pid()} | {error, term()}.

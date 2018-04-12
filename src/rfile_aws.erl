@@ -15,71 +15,59 @@
         ]).
 
 ls(File, Options) ->
-  case get_aws_credentials(Options, source) of
-    error ->
-      {error, missing_credentials};
-    #{access_key_id := AccessKeyID, secret_access_key := SecretAccessKey} ->
-      AwsConfig = erlcloud_s3:new(AccessKeyID, SecretAccessKey),
-      AwsPrefix = get_prefix(File),
+  AwsConfig = get_aws_config(Options, source),
+  AwsPrefix = get_prefix(File),
+  try
+    AwsResponse = erlcloud_s3:list_objects(
+                    get_bucket(File),
+                    [{delimiter, "/"}, {prefix, AwsPrefix}],
+                    AwsConfig),
+    {ok,
+     #{directories => get_response_elements(AwsResponse, common_prefixes, prefix, AwsPrefix),
+       files => get_response_elements(AwsResponse, contents, key, AwsPrefix)}}
+  catch
+    _:{aws_error, {http_error, 404 , _, _}} ->
+      {error, bucket_not_found};
+    Error:Reason ->
+      lager:error("S3 list bucket error: ~p:~p", [Error, Reason]),
+      {error, Reason}
+  end.
+
+rm(File, Options) ->
+  AwsConfig = get_aws_config(Options, source),
+  Bucket = get_bucket(File),
+  case get_prefix(File) of
+    Key when length(Key) > 0 ->
       try
-        AwsResponse = erlcloud_s3:list_objects(
-                        get_bucket(File),
-                        [{delimiter, "/"}, {prefix, AwsPrefix}],
-                        AwsConfig#aws_config{s3_follow_redirect = true}),
-        {ok,
-         #{directories => get_response_elements(AwsResponse, common_prefixes, prefix, AwsPrefix),
-           files => get_response_elements(AwsResponse, contents, key, AwsPrefix)}}
+        case rfile_utils:get_path_format(File) of
+          {directory, Bucket, Key} ->
+            delete_s3_directory(
+              Bucket,
+              Key,
+              Options,
+              AwsConfig);
+          {file, Bucket, Key} when length(Key) > 0 ->
+            delete_s3_file(
+              Bucket,
+              Key,
+              AwsConfig);
+          _Other ->
+            {error, invalid_source}
+        end
       catch
         _:{aws_error, {http_error, 404 , _, _}} ->
           {error, bucket_not_found};
         Error:Reason ->
           lager:error("S3 list bucket error: ~p:~p", [Error, Reason]),
           {error, Reason}
-      end
-  end.
-
-rm(File, Options) ->
-  case get_aws_credentials(Options, source) of
-    error ->
-      {error, missing_credentials};
-    #{access_key_id := AccessKeyID, secret_access_key := SecretAccessKey} ->
-      AwsConfig = erlcloud_s3:new(AccessKeyID, SecretAccessKey),
-      Bucket = get_bucket(File),
-      case get_prefix(File) of
-        Key when length(Key) > 0 ->
-          try
-            case rfile_utils:get_path_format(File) of
-              {directory, Bucket, Key} ->
-                delete_s3_directory(
-                  Bucket,
-                  Key,
-                  Options,
-                  AwsConfig#aws_config{s3_follow_redirect = true});
-              {file, Bucket, Key} when length(Key) > 0 ->
-                delete_s3_file(
-                  Bucket,
-                  Key,
-                  AwsConfig#aws_config{s3_follow_redirect = true});
-              _Other ->
-                {error, invalid_source}
-            end
-          catch
-            _:{aws_error, {http_error, 404 , _, _}} ->
-              {error, bucket_not_found};
-            Error:Reason ->
-              lager:error("S3 list bucket error: ~p:~p", [Error, Reason]),
-              {error, Reason}
-          end;
-        _Key ->
-          {error, cant_delete_bucket}
-      end
+      end;
+    _Key ->
+      {error, cant_delete_bucket}
   end.
 
 copy(#{type := aws} = Source, #{type := aws} = Destination, Options) ->
-  case {get_aws_credentials(Options, source), get_aws_credentials(Options, destination)} of
-    {#{access_key_id := AccessKeyID, secret_access_key := SecretAccessKey},
-     #{access_key_id := AccessKeyID, secret_access_key := SecretAccessKey}} ->
-      AwsConfig = (erlcloud_s3:new(AccessKeyID, SecretAccessKey))#aws_config{s3_follow_redirect = true},
+  case {get_aws_config(Options, source), get_aws_config(Options, destination)} of
+    {AwsConfig, AwsConfig} ->
       case {rfile_utils:get_path_format(Source), rfile_utils:get_path_format(Destination)} of
         {{directory, SourceBucket, SourceKey}, {directory, DestinationBucket, DestinationKey}} ->
           copy_directory_s3_to_s3(SourceBucket, SourceKey, DestinationBucket, DestinationKey, Options, AwsConfig);
@@ -90,17 +78,11 @@ copy(#{type := aws} = Source, #{type := aws} = Destination, Options) ->
         {{file, SourceBucket, SourceKey}, {file, DestinationBucket, DestinationKey}} ->
           copy_file_s3_to_s3(SourceBucket, SourceKey, DestinationBucket, DestinationKey, Options, AwsConfig)
       end;
-    {error, _} ->
-      {error, missing_credentials};
-    {_, error} ->
-      {error, missing_credentials};
     {_, _} ->
-      {error, not_supported} % TODO
+      {error, not_supported} % TODO copy from one AWS to an other
   end;
 copy(#{type := aws} = Source, #{type := fs} = Destination, Options) ->
-  #{access_key_id := AccessKeyID,
-    secret_access_key := SecretAccessKey} = get_aws_credentials(Options, source),
-  AwsConfig = (erlcloud_s3:new(AccessKeyID, SecretAccessKey))#aws_config{s3_follow_redirect = true},
+  AwsConfig = get_aws_config(Options, source),
   case rfile_utils:get_path_format(Source) of
     {directory, SourceBucket, SourceKey} ->
       copy_directory_s3_to_fs(SourceBucket, SourceKey, rfile_utils:get_filepath(Destination), Options, AwsConfig);
@@ -108,9 +90,7 @@ copy(#{type := aws} = Source, #{type := fs} = Destination, Options) ->
       copy_file_s3_to_fs(SourceBucket, SourceKey, rfile_utils:get_filepath(Destination), Options, AwsConfig)
   end;
 copy(#{type := fs} = Source, #{type := aws} = Destination, Options) ->
-  #{access_key_id := AccessKeyID,
-    secret_access_key := SecretAccessKey} = get_aws_credentials(Options, destination),
-  AwsConfig = (erlcloud_s3:new(AccessKeyID, SecretAccessKey))#aws_config{s3_follow_redirect = true},
+  AwsConfig = get_aws_config(Options, destination),
   case rfile_utils:get_path_format(Destination) of
     {directory, DestinationBucket, DestinationKey} ->
       copy_directory_fs_to_s3(rfile_utils:get_filepath(Source), DestinationBucket, DestinationKey, Options, AwsConfig);
@@ -317,6 +297,14 @@ get_prefix(#{host := []}) ->
 get_prefix(#{path := Path}) ->
   Path.
 
+get_aws_config(Options, Who) ->
+  (case get_aws_credentials(Options, Who) of
+    undefined ->
+      #aws_config{};
+    #{access_key_id := AccessKeyID, secret_access_key := SecretAccessKey} ->
+      erlcloud_s3:new(AccessKeyID, SecretAccessKey)
+  end)#aws_config{s3_follow_redirect = true}.
+
 get_aws_credentials(#{aws := Aws} = Options, Who) ->
   case maps:get(Who, Options, #{}) of
     #{aws := SourceAws} ->
@@ -329,7 +317,7 @@ get_aws_credentials(Options, Who) ->
     #{aws := SourceAws} ->
       SourceAws;
     _Other ->
-      error
+      undefined
   end.
 
 get_response_elements(AwsResponse, Global, Local, AwsPrefix) ->

@@ -67,7 +67,7 @@ handle_info({'DOWN', MonitorRef, _Type, Pid, Info}, State) ->
         shutdown ->
           rfile_utils:apply_callback(WorkerInfos),
           rfile_workers_sup:stop_child(Pid),
-          gen_server:cast(rfile_worker_queue, {delete_job, Job});
+          gen_server:cast(rfile_workers_queue, {delete_job, Job});
         _Other ->
           rfile_utils:apply_callback(WorkerInfos#{response => {error, {worker_down, Info}}})
       end,

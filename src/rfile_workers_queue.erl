@@ -1,5 +1,6 @@
 % @hidden
--module(rfile_worker_queue).
+-module(rfile_workers_queue).
+-compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
 
 %% API
@@ -34,7 +35,7 @@ init(_Args) ->
 % @hidden
 handle_call({_, _, _} = Job, _From, #{queue := Queue, jobs := Jobs} = State) ->
   Ref = erlang:make_ref(),
-  {reply, {ok, Ref}, State#{queue => queue:in(Ref, Queue), jobs => maps:put(Ref, Job, Jobs)}};
+  {reply, {ok, Ref}, start_job(State#{queue => queue:in(Ref, Queue), jobs => maps:put(Ref, Job, Jobs)})};
 handle_call(jobs, _From, #{queue := Queue} = State) ->
   {reply, queue:len(Queue), State};
 handle_call({job, Job}, _From, State) ->
@@ -47,6 +48,7 @@ handle_call(_Request, _From, State) ->
 handle_cast({max_jobs, MaxJobs}, State) ->
   {noreply, start_job(State#{max_jobs => MaxJobs})};
 handle_cast({delete_job, Job}, #{jobs := Jobs, active_jobs := ActiveJobs} = State) ->
+  lager:info("DELETE JOB ~p", [Job]),
   case maps:is_key(Job, ActiveJobs) of
     true ->
       {noreply, start_job(State#{jobs => maps:remove(Job, Jobs), active_jobs => maps:remove(Job, ActiveJobs)})};
@@ -97,7 +99,8 @@ start_job(#{queue := Queue, jobs := Jobs, active_jobs := ActiveJobs, max_jobs :=
             {Action, Args, Options} = Job ->
               case gen_server:call(rfile_workers_manager, {JobRef, Job}) of
                 {ok, WorkerPid} ->
-                  State#{queue => NewQueue, active_jobs := Jobs#{JobRef => WorkerPid}};
+                  lager:info("START JOB ~p (~p)", [JobRef, WorkerPid]),
+                  start_job(State#{queue => NewQueue, active_jobs := ActiveJobs#{JobRef => WorkerPid}});
                 {error, Reason} ->
                   rfile_utils:apply_callback(#{
                     options => rfile_utils:options_to_map(Options),

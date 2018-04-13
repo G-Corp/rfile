@@ -31,7 +31,7 @@ options_to_map(Options) when is_list(Options) ->
 apply_callback(#{options := #{callback := Callback} = Options,
                  response := Response,
                  action := Action,
-                 args := #{source := #{file := SrcFile}} = Args}) ->
+                 args := #{source := #{file := SrcFile}} = Args}) when is_function(Callback, 4) ->
   erlang:apply(
     Callback,
     [Action,

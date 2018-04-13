@@ -18,6 +18,10 @@ init([]) ->
         start => {rfile_workers_sup, start_link, []},
         type => supervisor,
         shutdown => 5000},
+      #{id => rfile_workers_queue,
+        start => {rfile_workers_queue, start_link, []},
+        type => worker,
+        shutdown => 5000}
       #{id => rfile_workers_manager,
         start => {rfile_workers_manager, start_link, []},
         type => worker,

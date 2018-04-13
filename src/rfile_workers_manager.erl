@@ -24,17 +24,18 @@ init(_Args) ->
   {ok, #{}}.
 
 % @hidden
-handle_call({Action, Args, Options}, From, State) ->
-  case rfile_workers_sup:start_child(Args, (options_to_map(Options))#{from => From}) of
+handle_call({Job, {Action, Args, Options}}, From, State) ->
+  case rfile_workers_sup:start_child(Args, (rfile_utils:options_to_map(Options))#{from => From}) of
     {ok, Child} ->
       Ref = erlang:monitor(process, Child),
       ok = gen_server:cast(Child, Action),
       {noreply, State#{Child => #{ref => Ref,
+                                  job => Job,
                                   pid => Child,
                                   from => From,
                                   action => Action,
                                   args => Args,
-                                  options => options_to_map(Options)}}};
+                                  options => rfile_utils:options_to_map(Options)}}};
     _Other ->
       {reply, {error, internal_error}, State}
   end;
@@ -59,18 +60,19 @@ handle_info({'DOWN', MonitorRef, _Type, Pid, Info}, State) ->
   lager:debug("Worker (PID ~p) terminate with reason ~p", [Pid, Info]),
   case maps:get(Pid, State, undefined) of
     undefined ->
-      ok;
-    #{ref := MonitorRef} = WorkerInfos ->
+      {noreply, State};
+    #{ref := MonitorRef, job := Job} = WorkerInfos ->
       erlang:demonitor(MonitorRef),
       case Info of
         shutdown ->
-          apply_callback(WorkerInfos),
-          rfile_workers_sup:stop_child(Pid);
+          rfile_utils:apply_callback(WorkerInfos),
+          rfile_workers_sup:stop_child(Pid),
+          gen_server:cast(rfile_workers_queue, {delete_job, Job});
         _Other ->
-          apply_callback(WorkerInfos#{response => {error, {worker_down, Info}}})
-      end
-  end,
-  {noreply, State};
+          rfile_utils:apply_callback(WorkerInfos#{response => {error, {worker_down, Info}}})
+      end,
+      {noreply, maps:remove(Pid, State)}
+  end;
 handle_info(_Info, State) ->
   {noreply, State}.
 
@@ -81,26 +83,3 @@ terminate(_Reason, _State) ->
 % @hidden
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
-
-apply_callback(#{options := #{callback := Callback} = Options,
-                 response := Response,
-                 action := Action,
-                 args := #{source := #{file := SrcFile}} = Args}) ->
-  erlang:apply(
-    Callback,
-    [Action,
-     case maps:get(destination, Args, undefined) of
-       #{file := DestFile} ->
-         [SrcFile, DestFile];
-       _ ->
-         [SrcFile]
-     end,
-     Response,
-     maps:get(metadata, Options, undefined)]);
-apply_callback(_WorkerInfos) ->
-  ok.
-
-options_to_map(Options) when is_map(Options) ->
-  Options;
-options_to_map(Options) when is_list(Options) ->
-  bucmaps:from_list(Options).

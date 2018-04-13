@@ -5,6 +5,10 @@
          ls/2
          , cp/3
          , rm/2
+
+         , max_jobs/1
+         , jobs/0
+         , status/1
         ]).
 
 -export_type([
@@ -52,35 +56,65 @@
 
 -type options() :: options_map() | options_list().
 
+% @doc
+% Update the maximum number of jobs.
+% @end
+-spec max_jobs(Max::integer()) -> ok.
+max_jobs(Max) when is_integer(Max) ->
+  gen_server:cast(rfile_workers_queue, {max_jobs, Max}).
+
+% @doc
+% Return the number of queued jobs.
+% @end
+-spec jobs() -> integer().
+jobs() ->
+  gen_server:call(rfile_workers_queue, jobs).
+
+% @doc
+% Return the status of a given job.
+% @end
+-spec status(Job::reference()) -> queued | started | terminated.
+status(Job) when is_reference(Job) ->
+  gen_server:call(rfile_workers_queue, {status, Job}).
+
+% @doc
+% List directory content
+% @end
 -spec ls(Source::string() | binary(),
-         Options::options()) -> {ok, pid()} | {error, term()}.
+         Options::options()) -> {ok, reference()} | {error, term()}.
 ls(Source, Options) ->
   case find_provider(Source) of
     {error, _Reason} = Error ->
       Error;
     Other ->
-      gen_server:call(rfile_workers_manager, {ls, Other, Options})
+      gen_server:call(rfile_workers_queue, {ls, Other, Options})
   end.
 
+% @doc
+% Copy files and directories
+% @end
 -spec cp(Source::string() | binary(),
          Destination::string() | binary(),
-         Options::options()) -> {ok, pid()} | {error, term()}.
+         Options::options()) -> {ok, reference()} | {error, term()}.
 cp(Source, Destination, Options) ->
   case find_provider(Source, Destination) of
     {error, _Reason} = Error ->
       Error;
     Other ->
-      gen_server:call(rfile_workers_manager, {cp, Other, Options})
+      gen_server:call(rfile_workers_queue, {cp, Other, Options})
   end.
 
+% @doc
+% Remove files or directories
+% @end
 -spec rm(Source::string() | binary(),
-         Options::options()) -> {ok, pid()} | {error, term()}.
+         Options::options()) -> {ok, reference()} | {error, term()}.
 rm(Source, Options) ->
   case find_provider(Source) of
     {error, _Reason} = Error ->
       Error;
     Other ->
-      gen_server:call(rfile_workers_manager, {rm, Other, Options})
+      gen_server:call(rfile_workers_queue, {rm, Other, Options})
   end.
 
 find_provider(Source) ->

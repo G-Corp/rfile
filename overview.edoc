@@ -20,7 +20,7 @@ rfile:rm(
 </pre>
 
 Copy :
-<pre lang="erlang">>
+<pre lang="erlang">
 rfile:cp(
   "file:///home/erlang/data/",
   "s3://my_bucket/my_data/",
@@ -34,7 +34,7 @@ rfile:cp(
 </pre>
 
 List:
-<pre lang="erlang">>
+<pre lang="erlang">
 rfile:rm(
   "s3://my_bucket/my_dir/",
   #{aws =&gt; #{access_key_id =&gt; "ABCDEFGHIJKLMNOPQRST",

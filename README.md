@@ -28,7 +28,7 @@ rfile:rm(
 Copy :
 
 ```erlang
->
+
 rfile:cp(
   "file:///home/erlang/data/",
   "s3://my_bucket/my_data/",
@@ -44,7 +44,7 @@ rfile:cp(
 List:
 
 ```erlang
->
+
 rfile:rm(
   "s3://my_bucket/my_dir/",
   #{aws => #{access_key_id => "ABCDEFGHIJKLMNOPQRST",
@@ -76,6 +76,6 @@ THIS SOFTWARE IS PROVIDED BY THE AUTHOR ''AS IS'' AND ANY EXPRESS OR IMPLIED WAR
 
 
 <table width="100%" border="0" summary="list of modules">
-<tr><td><a href="https://github.com/G-Corp/rfile/blob/greg/queue/doc/rfile.md" class="module">rfile</a></td></tr>
-<tr><td><a href="https://github.com/G-Corp/rfile/blob/greg/queue/doc/rfile_storage.md" class="module">rfile_storage</a></td></tr></table>
+<tr><td><a href="https://github.com/G-Corp/rfile/blob/master/doc/rfile.md" class="module">rfile</a></td></tr>
+<tr><td><a href="https://github.com/G-Corp/rfile/blob/master/doc/rfile_storage.md" class="module">rfile_storage</a></td></tr></table>
 

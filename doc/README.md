@@ -28,7 +28,7 @@ rfile:rm(
 Copy :
 
 ```erlang
->
+
 rfile:cp(
   "file:///home/erlang/data/",
   "s3://my_bucket/my_data/",
@@ -44,7 +44,7 @@ rfile:cp(
 List:
 
 ```erlang
->
+
 rfile:rm(
   "s3://my_bucket/my_dir/",
   #{aws => #{access_key_id => "ABCDEFGHIJKLMNOPQRST",

@@ -189,12 +189,13 @@ copy_file_s3_to_fs(SourceBucket, SourceKey, Destination, _Options, AwsConfig) ->
       {error, Reason}
   end.
 
-copy_file_fs_to_s3(Source, DestinationBucket, DestinationKey, _Options, AwsConfig) ->
+copy_file_fs_to_s3(Source, DestinationBucket, DestinationKey, Options, AwsConfig) ->
   lager:debug("COPY ~ts TO s3://~ts/~ts", [Source, DestinationBucket, DestinationKey]),
+  AwsOptions = aws_options(Options, [acl]),
   case file:read_file(Source) of
     {ok, Data} ->
       try
-        erlcloud_s3:put_object(DestinationBucket, DestinationKey, Data, AwsConfig),
+        erlcloud_s3:put_object(DestinationBucket, DestinationKey, Data, AwsOptions, AwsConfig),
         {ok, "s3://" ++ DestinationBucket ++ "/" ++ DestinationKey}
       catch
         _:_->

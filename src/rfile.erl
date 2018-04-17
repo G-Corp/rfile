@@ -87,7 +87,9 @@ ls(Source, Options) ->
     {error, _Reason} = Error ->
       Error;
     Other ->
-      gen_server:call(rfile_workers_queue, {ls, Other, Options})
+      Ref = erlang:make_ref(),
+      gen_server:cast(rfile_workers_queue, {{ls, Other, Options}, Ref}),
+      {ok, Ref}
   end.
 
 % @doc
@@ -101,7 +103,9 @@ cp(Source, Destination, Options) ->
     {error, _Reason} = Error ->
       Error;
     Other ->
-      gen_server:call(rfile_workers_queue, {cp, Other, Options})
+      Ref = erlang:make_ref(),
+      gen_server:cast(rfile_workers_queue, {{cp, Other, Options}, Ref}),
+      {ok, Ref}
   end.
 
 % @doc
@@ -114,7 +118,9 @@ rm(Source, Options) ->
     {error, _Reason} = Error ->
       Error;
     Other ->
-      gen_server:call(rfile_workers_queue, {rm, Other, Options})
+      Ref = erlang:make_ref(),
+      gen_server:cast(rfile_workers_queue, {{rm, Other, Options}, Ref}),
+      {ok, Ref}
   end.
 
 find_provider(Source) ->

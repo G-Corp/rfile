@@ -33,9 +33,6 @@ init(_Args) ->
     }}.
 
 % @hidden
-handle_call({_, _, _} = Job, _From, #{queue := Queue, jobs := Jobs} = State) ->
-  Ref = erlang:make_ref(),
-  {reply, {ok, Ref}, start_job(State#{queue => queue:in(Ref, Queue), jobs => maps:put(Ref, Job, Jobs)})};
 handle_call(jobs, _From, #{queue := Queue} = State) ->
   {reply, queue:len(Queue), State};
 handle_call({job, Job}, _From, State) ->
@@ -45,6 +42,8 @@ handle_call(_Request, _From, State) ->
   {reply, Reply, State}.
 
 % @hidden
+handle_cast({{_, _, _} = Job, Ref}, #{queue := Queue, jobs := Jobs} = State) ->
+  {noreply, start_job(State#{queue => queue:in(Ref, Queue), jobs => maps:put(Ref, Job, Jobs)})};
 handle_cast({max_jobs, MaxJobs}, State) ->
   {noreply, start_job(State#{max_jobs => MaxJobs})};
 handle_cast({delete_job, Job}, #{jobs := Jobs, active_jobs := ActiveJobs} = State) ->
@@ -97,7 +96,7 @@ start_job(#{queue := Queue, jobs := Jobs, active_jobs := ActiveJobs, max_jobs :=
             undefined ->
               State;
             {Action, Args, Options} = Job ->
-              case gen_server:call(rfile_workers_manager, {JobRef, Job}) of
+              case gen_server:call(rfile_workers_manager, {JobRef, Job}, infinity) of
                 {ok, WorkerPid} ->
                   lager:debug("START JOB ~p (~p)", [JobRef, WorkerPid]),
                   start_job(State#{queue => NewQueue, active_jobs := ActiveJobs#{JobRef => WorkerPid}});

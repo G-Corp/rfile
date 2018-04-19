@@ -27,7 +27,7 @@ defmodule Rfile.Mixfile do
 
   defp deps do
     [
-      {:lager, "~> 3.5.1"},
+      {:lager, "~> 3.6.1"},
       {:bucs, "~> 1.0.15"},
       {:erlcloud, "~> 3.1.4"}
     ]

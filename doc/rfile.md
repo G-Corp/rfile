@@ -46,7 +46,7 @@ options() = <a href="#type-options_map">options_map()</a> | <a href="#type-optio
 
 
 <pre><code>
-options_list() = [{acl, <a href="#type-acl">acl()</a>} | {recursive, true | false} | {metadata, term()} | {callback, fun((atom(), [string() | binary()], {ok | error, term()}, term() | undefined) -&gt; ok)} | {aws, <a href="#type-aws">aws()</a>} | {source, [{aws, <a href="#type-aws">aws()</a>}]} | {destination, [{aws, <a href="#type-aws">aws()</a>}]}]
+options_list() = [{acl, <a href="#type-acl">acl()</a>} | {recursive, true | false} | {metadata, term()} | {callback, pid() | fun((atom(), [string() | binary()], {ok | error, term()}, term() | undefined) -&gt; ok)} | {aws, <a href="#type-aws">aws()</a>} | {source, [{aws, <a href="#type-aws">aws()</a>}]} | {destination, [{aws, <a href="#type-aws">aws()</a>}]}]
 </code></pre>
 
 
@@ -82,7 +82,7 @@ Return the status of a given job.</td></tr></table>
 ### cp/3 ###
 
 <pre><code>
-cp(Source::string() | binary(), Destination::string() | binary(), Options::<a href="#type-options">options()</a>) -&gt; {ok, reference()} | {error, term()}
+cp(Source::string() | binary(), Destination::string() | binary() | [string() | binary()], Options::<a href="#type-options">options()</a>) -&gt; {ok, reference()} | {error, term()}
 </code></pre>
 <br />
 

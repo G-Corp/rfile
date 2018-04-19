@@ -36,6 +36,8 @@ apply_callback(#{options := #{callback := Callback} = Options,
     Callback,
     [Action,
      case maps:get(destination, Args, undefined) of
+       Destinations when is_list(Destinations) ->
+         [SrcFile, [File || #{file := File} <- Destinations]];
        #{file := DestFile} ->
          [SrcFile, DestFile];
        _ ->
@@ -43,5 +45,21 @@ apply_callback(#{options := #{callback := Callback} = Options,
      end,
      Response,
      maps:get(metadata, Options, undefined)]);
+apply_callback(#{options := #{callback := Callback} = Options,
+                 response := Response,
+                 action := Action,
+                 args := #{source := #{file := SrcFile}} = Args}) when is_pid(Callback) ->
+  Callback ! {
+    response,
+    Action,
+    case maps:get(destination, Args, undefined) of
+      #{file := DestFile} ->
+        [SrcFile, DestFile];
+      _ ->
+        [SrcFile]
+    end,
+    Response,
+    maps:get(metadata, Options, undefined)
+   };
 apply_callback(_WorkerInfos) ->
   ok.

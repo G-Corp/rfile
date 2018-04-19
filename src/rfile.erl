@@ -48,7 +48,7 @@
                          {acl, acl()}
                          | {recursive, true | false}
                          | {metadata, term()}
-                         | {callback, fun((atom(), [string() | binary()], {ok | error, term()}, term() | undefined) -> ok)}
+                         | {callback, pid() | fun((atom(), [string() | binary()], {ok | error, term()}, term() | undefined) -> ok)}
                          | {aws, aws()}
                          | {source, [{aws, aws()}]}
                          | {destination, [{aws, aws()}]}
@@ -86,9 +86,9 @@ ls(Source, Options) ->
   case find_provider(Source) of
     {error, _Reason} = Error ->
       Error;
-    Other ->
+    JobData ->
       Ref = erlang:make_ref(),
-      gen_server:cast(rfile_workers_queue, {{ls, Other, Options}, Ref}),
+      gen_server:cast(rfile_workers_queue, {{ls, JobData, Options}, Ref}),
       {ok, Ref}
   end.
 
@@ -96,15 +96,19 @@ ls(Source, Options) ->
 % Copy files and directories
 % @end
 -spec cp(Source::string() | binary(),
-         Destination::string() | binary(),
+         Destination::string() | binary() | [string() | binary()],
          Options::options()) -> {ok, reference()} | {error, term()}.
 cp(Source, Destination, Options) ->
   case find_provider(Source, Destination) of
     {error, _Reason} = Error ->
       Error;
-    Other ->
+    #{multi := true} = JobData ->
       Ref = erlang:make_ref(),
-      gen_server:cast(rfile_workers_queue, {{cp, Other, Options}, Ref}),
+      rfile_multi_sup:start_child(cp, JobData, Options, Ref),
+      {ok, Ref};
+    JobData ->
+      Ref = erlang:make_ref(),
+      gen_server:cast(rfile_workers_queue, {{cp, JobData, Options}, Ref}),
       {ok, Ref}
   end.
 
@@ -117,9 +121,9 @@ rm(Source, Options) ->
   case find_provider(Source) of
     {error, _Reason} = Error ->
       Error;
-    Other ->
+    JobData ->
       Ref = erlang:make_ref(),
-      gen_server:cast(rfile_workers_queue, {{rm, Other, Options}, Ref}),
+      gen_server:cast(rfile_workers_queue, {{rm, JobData, Options}, Ref}),
       {ok, Ref}
   end.
 
@@ -138,22 +142,48 @@ find_provider(Source) ->
   end.
 
 find_provider(Source, Destination) ->
-  case {cut(Source), cut(Destination)} of
-    {#{type := T1} = Src, #{type := T2} = Dest} ->
-      case get_provider({T1, T2}) of
-        {ok, Provider} ->
-          #{provider => Provider,
-            source => Src,
-            destination => Dest};
-        Error ->
-          Error
-      end;
+  {
+   FSrc,
+   FDest,
+   FSrcType,
+   FDestType,
+   Multi
+  } = case bucs:is_list_of_printables(Destination) of
+        true ->
+          Src = cut(Source),
+          Dest = [cut(D) || D <- Destination],
+          DestType = lists:foldl(fun
+                                   (First, undefined) -> First;
+                                   (#{type := Tx}, #{type := Tx} = Acc) -> Acc;
+                                   ({error, _Reason} = Error, _Acc) -> Error;
+                                   (#{type := _}, _Acc) -> {error, unsupported}
+                                 end, undefined, Dest),
+          {Src, Dest, Src, DestType, true};
+        false ->
+          Src = cut(Source),
+          Dest = cut(Destination),
+          {Src, Dest, Src, Dest, false}
+      end,
+  case {FSrcType, FDestType} of
+    {#{type := T1}, #{type := T2}} ->
+      set_provider({T1, T2}, FSrc, FDest, Multi);
     {{error, _Reason} = Error, #{}} ->
       Error;
     {#{}, {error, _Reason} = Error} ->
       Error;
-    {_Src, _Dest} ->
+    {_, _} ->
       {error, unsupported}
+  end.
+
+set_provider(Types, Source, Destination, Multi) ->
+  case get_provider(Types) of
+    {ok, Provider} ->
+      #{provider => Provider,
+        source => Source,
+        destination => Destination,
+        multi => Multi};
+    Error ->
+      Error
   end.
 
 get_provider(Type) ->

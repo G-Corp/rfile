@@ -14,6 +14,10 @@ init([]) ->
       intensity => 1,
       period => 5},
     [
+      #{id => rfile_multi_sup,
+        start => {rfile_multi_sup, start_link, []},
+        type => supervisor,
+        shutdown => 5000},
       #{id => rfile_workers_sup,
         start => {rfile_workers_sup, start_link, []},
         type => supervisor,

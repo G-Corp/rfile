@@ -25,6 +25,7 @@ start_link() ->
 % @hidden
 init(_Args) ->
   {ok, #{
+     multi => #{},
      jobs => #{},
      timer => erlang:send_after(?INITIAL_START_INTERVAL, self(), start_job),
      queue => queue:new(),
@@ -35,7 +36,7 @@ init(_Args) ->
 % @hidden
 handle_call(jobs, _From, #{queue := Queue} = State) ->
   {reply, queue:len(Queue), State};
-handle_call({job, Job}, _From, State) ->
+handle_call({status, Job}, _From, State) ->
   {reply, get_job_status(Job, State), State};
 handle_call(_Request, _From, State) ->
   Reply = ok,
@@ -54,6 +55,11 @@ handle_cast({delete_job, Job}, #{jobs := Jobs, active_jobs := ActiveJobs} = Stat
     false ->
       {noreply, State}
   end;
+handle_cast({register_multi, Ref, Jobs}, #{multi := Multi} = State) ->
+  {noreply, State#{multi => Multi#{Ref => Jobs}}};
+handle_cast({terminate_multi, Pid, Ref}, #{multi := Multi} = State) ->
+  rfile_multi_sup:stop_child(Pid),
+  {noreply, State#{multi => maps:remove(Ref, Multi)}};
 handle_cast(_Msg, State) ->
   {noreply, State}.
 
@@ -71,7 +77,7 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
-get_job_status(#{queue := Queue, active_jobs := ActiveJobs}, Job) ->
+get_job_status(Job, #{queue := Queue, active_jobs := ActiveJobs, multi := Multi} = State) ->
   case maps:is_key(Job, ActiveJobs) of
     true ->
       started;
@@ -80,7 +86,22 @@ get_job_status(#{queue := Queue, active_jobs := ActiveJobs}, Job) ->
         true ->
           queued;
         false ->
-          terminated
+          case maps:get(Job, Multi, undefined) of
+            undefined ->
+              terminated;
+            Jobs ->
+              get_jobs_status([get_job_status(J, State) || J <- Jobs])
+          end
+      end
+  end.
+
+get_jobs_status(Status) ->
+  case lists:all(fun(S) -> S =:= terminated end, Status) of
+    true -> terminated;
+    false ->
+      case lists:any(fun(S) -> S =:= started end, Status) of
+        true -> started;
+        false -> queued
       end
   end.
 

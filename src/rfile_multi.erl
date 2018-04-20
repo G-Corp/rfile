@@ -27,7 +27,7 @@ init([Action, #{destination := Destinations} = JobData, Options, Ref]) ->
                {{
                  Action,
                  JobData#{destination => Destination},
-                 Options#{callback => self()}
+                 (rfile_utils:options_to_map(Options))#{callback => self()}
                 }, Ref
                }
               ),
@@ -41,7 +41,7 @@ init([Action, #{destination := Destinations} = JobData, Options, Ref]) ->
      job_data => JobData,
      todo => length(Jobs),
      jobs => Jobs,
-     options => Options,
+     options => rfile_utils:options_to_map(Options),
      ok => [],
      errors => [],
      ref => Ref

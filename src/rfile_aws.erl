@@ -227,11 +227,16 @@ copy_directory_s3_to_s3(SourceBucket, SourceKey, DestinationBucket, DestinationK
   lager:debug("Copy directory => ~p / ~p to ~p / ~p", [SourceBucket, SourceKey, DestinationBucket, DestinationKey]),
   AwsOptions = aws_options(Options, [acl]),
   try
-    erlcloud_s3:copy_object(
-      DestinationBucket, DestinationKey,
-      SourceBucket, SourceKey,
-      AwsOptions,
-      AwsConfig),
+    case maps:get(copy_files_only, Options, true) of
+      false ->
+        erlcloud_s3:copy_object(
+          DestinationBucket, DestinationKey,
+          SourceBucket, SourceKey,
+          AwsOptions,
+          AwsConfig);
+      true ->
+        ok
+    end,
     case maps:get(recursive, Options, false) of
       true ->
         case copy_recursive_s3_to_s3(SourceBucket, SourceKey, DestinationBucket, DestinationKey, Options, AwsConfig) of

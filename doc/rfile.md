@@ -138,7 +138,7 @@ Remove files or directories
 ### status/0 ###
 
 <pre><code>
-status() -&gt; [{started | queued, [{reference(), {atom(), string()}}]}]
+status() -&gt; [{started | queued, [{reference(), {atom(), string()}} | {reference(), reference(), {atom(), string()}}]}]
 </code></pre>
 <br />
 

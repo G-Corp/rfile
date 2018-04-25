@@ -83,7 +83,7 @@ status(Job) when is_reference(Job) ->
 % @doc
 % Return the status of all jobs
 % @end
--spec status() -> [{started | queued, [{reference(), {atom(), string()}}]}].
+-spec status() -> [{started | queued, [{reference(), {atom(), string()}} | {reference(), reference(), {atom(), string()}}]}].
 status() ->
   gen_server:call(rfile_workers_queue, status).
 

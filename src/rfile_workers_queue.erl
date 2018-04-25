@@ -97,40 +97,31 @@ get_job_status(Job, #{queue := Queue, active_jobs := ActiveJobs, multi := Multi}
       end
   end.
 
-get_all_jobs_status(#{jobs := Jobs, queue := Queue, active_jobs := ActiveJobs, multi := Multi} = State) ->
-  MultiJobsRefs = lists:flatten(maps:values(Multi)),
+get_all_jobs_status(#{jobs := Jobs, queue := Queue, active_jobs := ActiveJobs, multi := Multi}) ->
+  MultiJobsRefs = maps:fold(fun(MRef, JobsRefs, Acc) ->
+                                lists:foldl(fun(JobRef, Acc0) ->
+                                                Acc0#{JobRef => MRef}
+                                            end, Acc, JobsRefs)
+                            end, #{}, Multi),
   Started = maps:fold(fun(Ref, _WorkerPid, Acc) ->
-                          case lists:member(Ref, MultiJobsRefs) of
-                            true ->
-                              Acc;
-                            false ->
-                              {Action, #{source := #{file := File}}, _Options} = maps:get(Ref, Jobs),
-                              [{Ref, {Action, File}}|Acc]
+                          {Action, #{source := #{file := File}}, _Options} = maps:get(Ref, Jobs),
+                          case maps:get(Ref, MultiJobsRefs, undefined) of
+                            undefined ->
+                              [{Ref, {Action, File}}|Acc];
+                            MRef ->
+                              [{MRef, Ref, {Action, File}}|Acc]
                           end
-                     end, [], ActiveJobs),
+                      end, [], ActiveJobs),
   Queued = lists:map(fun(Ref) ->
                          {Action, #{source := #{file := File}}, _Options} = maps:get(Ref, Jobs),
-                         {Ref, {Action, File}}
+                         case maps:get(Ref, MultiJobsRefs, undefined) of
+                           undefined ->
+                             {Ref, {Action, File}};
+                           MRef ->
+                             {MRef, Ref, {Action, File}}
+                         end
                      end, queue:to_list(Queue)),
-  {Started0, Queued0} = maps:fold(fun(Ref, MultiJobs, {S, Q}) ->
-                                      {Action, File} = find_job_action(MultiJobs, Jobs),
-                                      case get_multi_status([get_job_status(J, State) || J <- MultiJobs]) of
-                                        started ->
-                                          {[{Ref, {Action, File}}|S], Q};
-                                        queued ->
-                                          {S, [{Ref, {Action, File}}|Q]};
-                                        _ ->
-                                          {S, Q}
-                                      end
-                                  end, {Started, Queued}, Multi),
-  [{started, Started0}, {queued, Queued0}].
-
-find_job_action([], _Jobs) -> {undefined, undefined};
-find_job_action([Ref|Rest], Jobs) ->
-  case maps:get(Ref, Jobs, undefined) of
-    {Action, #{source := #{file := File}}, _Options} -> {Action, File};
-    _ -> find_job_action(Rest, Jobs)
-  end.
+  [{started, Started}, {queued, Queued}].
 
 get_multi_status(Status) ->
   case lists:all(fun(S) -> S =:= terminated end, Status) of

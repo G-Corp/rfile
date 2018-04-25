@@ -8,6 +8,7 @@
 
          , max_jobs/1
          , jobs/0
+         , status/0
          , status/1
         ]).
 
@@ -78,6 +79,13 @@ jobs() ->
 -spec status(Job::reference()) -> queued | started | terminated.
 status(Job) when is_reference(Job) ->
   gen_server:call(rfile_workers_queue, {status, Job}).
+
+% @doc
+% Return the status of all jobs
+% @end
+-spec status() -> [{started | queued, [{reference(), {atom(), string()}}]}].
+status() ->
+  gen_server:call(rfile_workers_queue, status).
 
 % @doc
 % List directory content

@@ -69,7 +69,8 @@ Copy files and directories.</td></tr><tr><td valign="top"><a href="#jobs-0">jobs
 Return the number of queued jobs.</td></tr><tr><td valign="top"><a href="#ls-2">ls/2</a></td><td>
 List directory content.</td></tr><tr><td valign="top"><a href="#max_jobs-1">max_jobs/1</a></td><td>
 Update the maximum number of jobs.</td></tr><tr><td valign="top"><a href="#rm-2">rm/2</a></td><td>
-Remove files or directories.</td></tr><tr><td valign="top"><a href="#status-1">status/1</a></td><td>
+Remove files or directories.</td></tr><tr><td valign="top"><a href="#status-0">status/0</a></td><td>
+Return the status of all jobs.</td></tr><tr><td valign="top"><a href="#status-1">status/1</a></td><td>
 Return the status of a given job.</td></tr></table>
 
 
@@ -131,6 +132,17 @@ rm(Source::string() | binary(), Options::<a href="#type-options">options()</a>) 
 <br />
 
 Remove files or directories
+
+<a name="status-0"></a>
+
+### status/0 ###
+
+<pre><code>
+status() -&gt; [{started | queued, [{reference(), {atom(), string()}}]}]
+</code></pre>
+<br />
+
+Return the status of all jobs
 
 <a name="status-1"></a>
 

@@ -28,7 +28,7 @@ init([Action, #{destination := Destinations} = JobData, Options, Ref]) ->
                  Action,
                  JobData#{destination => Destination},
                  (rfile_utils:options_to_map(Options))#{callback => self()}
-                }, Ref
+                }, JRef
                }
               ),
              JRef

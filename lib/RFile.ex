@@ -12,6 +12,9 @@ defmodule RFile do
   def unquote(:"status")(arg1) do
     :erlang.apply(:"rfile", :"status", [arg1])
   end
+  def unquote(:"status")() do
+    :erlang.apply(:"rfile", :"status", [])
+  end
   def unquote(:"ls")(arg1, arg2) do
     :erlang.apply(:"rfile", :"ls", [arg1, arg2])
   end

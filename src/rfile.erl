@@ -34,6 +34,7 @@
         % common
         recursive => true | false,
         copy_files_only => true | false,
+        retry_on_error => integer(),
         metadata => term(),
         callback => fun((atom(), [string() | binary()], {ok | error, term()}, term() | undefined) -> ok),
                       % Auth
@@ -50,6 +51,7 @@
                          {acl, acl()}
                          | {recursive, true | false}
                          | {copy_files_only, true | false}
+                         | {retry_on_error, integer()}
                          | {metadata, term()}
                          | {callback, pid() | fun((atom(), [string() | binary()], {ok | error, term()}, term() | undefined) -> ok)}
                          | {aws, aws()}

@@ -14,7 +14,7 @@
          , copy_directory_s3_to_s3/6
         ]).
 
-ls(File, Options) ->
+ls(#{file := SrcFile} = File, Options) ->
   AwsConfig = get_aws_config(Options, source),
   AwsPrefix = get_prefix(File),
   try
@@ -29,11 +29,11 @@ ls(File, Options) ->
     _:{aws_error, {http_error, 404 , _, _}} ->
       {error, bucket_not_found};
     Error:Reason ->
-      lager:error("S3 list bucket error: ~p:~p", [Error, Reason]),
+      lager:error("ls (~ts) error: ~p:~p", [SrcFile, Error, Reason]),
       {error, Reason}
   end.
 
-rm(File, Options) ->
+rm(#{file := SrcFile} = File, Options) ->
   AwsConfig = get_aws_config(Options, source),
   Bucket = get_bucket(File),
   case get_prefix(File) of
@@ -58,7 +58,7 @@ rm(File, Options) ->
         _:{aws_error, {http_error, 404 , _, _}} ->
           {error, bucket_not_found};
         Error:Reason ->
-          lager:error("S3 list bucket error: ~p:~p", [Error, Reason]),
+          lager:error("rm (~ts) error: ~p:~p", [SrcFile, Error, Reason]),
           {error, Reason}
       end;
     _Key ->
@@ -185,7 +185,7 @@ copy_file_s3_to_fs(SourceBucket, SourceKey, Destination, _Options, AwsConfig) ->
     _:{aws_error, {http_error, 404 , _, _}} ->
       {error, invalide_file};
     Error:Reason ->
-      lager:error("S3 list bucket error: ~p:~p", [Error, Reason]),
+      lager:error("cp (s3://~ts/~ts -> ~ts) error: ~p:~p", [SourceBucket, SourceKey, Destination, Error, Reason]),
       {error, Reason}
   end.
 
@@ -198,8 +198,9 @@ copy_file_fs_to_s3(Source, DestinationBucket, DestinationKey, Options, AwsConfig
         erlcloud_s3:put_object(DestinationBucket, DestinationKey, Data, AwsOptions, AwsConfig),
         {ok, "s3://" ++ DestinationBucket ++ "/" ++ DestinationKey}
       catch
-        _:_->
-          {error, destination_error}
+        Error:Reason ->
+          lager:error("cp (~ts -> s3://~ts/~ts) error: ~p:~p", [Source, DestinationBucket, DestinationKey, Error, Reason]),
+          {error, Reason}
       end;
     FSError ->
       FSError
@@ -219,7 +220,7 @@ copy_file_s3_to_s3(SourceBucket, SourceKey, DestinationBucket, DestinationKey, O
     _:{aws_error, {http_error, 404 , _, _}} ->
       {error, invalide_file};
     Error:Reason ->
-      lager:error("S3 list bucket error: ~p:~p", [Error, Reason]),
+      lager:error("cp (s3://~ts/~ts -> s3://~ts/~ts) error: ~p:~p", [SourceBucket, SourceKey, DestinationBucket, DestinationKey, Error, Reason]),
       {error, Reason}
   end.
 
@@ -252,7 +253,7 @@ copy_directory_s3_to_s3(SourceBucket, SourceKey, DestinationBucket, DestinationK
     _:{aws_error, {http_error, 404 , _, _}} ->
       {error, invalide_file};
     Error:Reason ->
-      lager:error("S3 list bucket error: ~p:~p", [Error, Reason]),
+      lager:error("cp (s3://~ts/~ts -> s3://~ts/~ts) error: ~p:~p", [SourceBucket, SourceKey, DestinationBucket, DestinationKey, Error, Reason]),
       {error, Reason}
   end.
 
@@ -327,6 +328,7 @@ get_aws_credentials(Options, Who) ->
   end.
 
 get_response_elements(AwsResponse, Global, Local, AwsPrefix) ->
+  lager:debug("Get response elements from ~p", [AwsResponse]),
   case lists:keyfind(Global, 1, AwsResponse) of
     false ->
       [];

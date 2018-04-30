@@ -104,23 +104,31 @@ get_all_jobs_status(#{jobs := Jobs, queue := Queue, active_jobs := ActiveJobs, m
                                             end, Acc, JobsRefs)
                             end, #{}, Multi),
   Started = maps:fold(fun(Ref, _WorkerPid, Acc) ->
-                          {Action, #{source := #{file := File}}, _Options} = maps:get(Ref, Jobs),
-                          case maps:get(Ref, MultiJobsRefs, undefined) of
+                          case maps:get(Ref, Jobs, undefined) of
+                            {Action, #{source := #{file := File}}, _Options} ->
+                              case maps:get(Ref, MultiJobsRefs, undefined) of
+                                undefined ->
+                                  [{Ref, {Action, File}}|Acc];
+                                MRef ->
+                                  [{MRef, Ref, {Action, File}}|Acc]
+                              end;
                             undefined ->
-                              [{Ref, {Action, File}}|Acc];
-                            MRef ->
-                              [{MRef, Ref, {Action, File}}|Acc]
+                              Acc
                           end
                       end, [], ActiveJobs),
-  Queued = lists:map(fun(Ref) ->
-                         {Action, #{source := #{file := File}}, _Options} = maps:get(Ref, Jobs),
-                         case maps:get(Ref, MultiJobsRefs, undefined) of
-                           undefined ->
-                             {Ref, {Action, File}};
-                           MRef ->
-                             {MRef, Ref, {Action, File}}
-                         end
-                     end, queue:to_list(Queue)),
+  Queued = lists:foldr(fun(Ref, Acc) ->
+                           case maps:get(Ref, Jobs) of
+                             {Action, #{source := #{file := File}}, _Options} ->
+                               case maps:get(Ref, MultiJobsRefs, undefined) of
+                                 undefined ->
+                                   [{Ref, {Action, File}}|Acc];
+                                 MRef ->
+                                   [{MRef, Ref, {Action, File}}|Acc]
+                               end;
+                             _ ->
+                               Acc
+                           end
+                       end, [], queue:to_list(Queue)),
   [{started, Started}, {queued, Queued}].
 
 get_multi_status(Status) ->

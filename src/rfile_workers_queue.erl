@@ -117,7 +117,7 @@ get_all_jobs_status(#{jobs := Jobs, queue := Queue, active_jobs := ActiveJobs, m
                           end
                       end, [], ActiveJobs),
   Queued = lists:foldr(fun(Ref, Acc) ->
-                           case maps:get(Ref, Jobs) of
+                           case maps:get(Ref, Jobs, undefined) of
                              {Action, #{source := #{file := File}}, _Options} ->
                                case maps:get(Ref, MultiJobsRefs, undefined) of
                                  undefined ->

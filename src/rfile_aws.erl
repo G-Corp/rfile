@@ -18,13 +18,13 @@ ls(#{file := SrcFile} = File, Options) ->
   AwsConfig = get_aws_config(Options, source),
   AwsPrefix = get_prefix(File),
   try
-    AwsResponse = erlcloud_s3:list_objects(
-                    get_bucket(File),
-                    [{delimiter, "/"}, {prefix, AwsPrefix}],
-                    AwsConfig),
+    {Directories, Files} = list_objects(
+                             get_bucket(File),
+                             AwsPrefix,
+                             AwsConfig),
     {ok,
-     #{directories => get_response_elements(AwsResponse, common_prefixes, prefix, AwsPrefix),
-       files => get_response_elements(AwsResponse, contents, key, AwsPrefix)}}
+     #{directories => Directories,
+       files => Files}}
   catch
     _:{aws_error, {http_error, 404 , _, _}} ->
       {error, bucket_not_found};
@@ -103,9 +103,9 @@ cp(_Source, _Destination, _Options) ->
 % ---------------------------------------------------------------------------------------------------------------------
 
 copy_directory_s3_to_fs(SourceBucket, SourceKey, Destination, Options, AwsConfig) ->
-  AwsResponse = erlcloud_s3:list_objects(SourceBucket, [{prefix, SourceKey}], AwsConfig),
+  {_Directories, Files} = list_objects(SourceBucket, SourceKey, AwsConfig),
   case copy_directory_s3_to_fs(
-         get_response_elements(AwsResponse, contents, key, SourceKey),
+         Files,
          SourceBucket,
          SourceKey,
          Destination,
@@ -258,14 +258,26 @@ copy_directory_s3_to_s3(SourceBucket, SourceKey, DestinationBucket, DestinationK
   end.
 
 copy_recursive_s3_to_s3(SourceBucket, SourceKey, DestinationBucket, DestinationKey, Options, AwsConfig) ->
-  AwsResponse = erlcloud_s3:list_objects(SourceBucket, [{delimiter, "/"}, {prefix, SourceKey}], AwsConfig),
+  {Directories, Files} = list_objects(SourceBucket, SourceKey, AwsConfig),
   case copy_objects_s3_to_s3(
-         get_response_elements(AwsResponse, contents, key, SourceKey),
-         SourceBucket, SourceKey, DestinationBucket, DestinationKey, Options, AwsConfig, copy_file_s3_to_s3) of
+         Files,
+         SourceBucket,
+         SourceKey,
+         DestinationBucket,
+         DestinationKey,
+         Options,
+         AwsConfig,
+         copy_file_s3_to_s3) of
     ok ->
       case copy_objects_s3_to_s3(
-             get_response_elements(AwsResponse, common_prefixes, prefix, SourceKey),
-             SourceBucket, SourceKey, DestinationBucket, DestinationKey, Options, AwsConfig, copy_directory_s3_to_s3) of
+             Directories,
+             SourceBucket,
+             SourceKey,
+             DestinationBucket,
+             DestinationKey,
+             Options,
+             AwsConfig,
+             copy_directory_s3_to_s3) of
         ok -> ok;
         Error -> Error
       end;
@@ -353,9 +365,7 @@ delete_s3_file(Bucket, Key, AwsConfig) ->
 
 delete_s3_directory(Bucket, Key, Options, AwsConfig) ->
   Recursive = maps:get(recursive, Options, false),
-  AwsResponse = erlcloud_s3:list_objects(Bucket, [{delimiter, "/"}, {prefix, Key}], AwsConfig),
-  Keys = get_response_elements(AwsResponse, contents, key, Key),
-  Prefixes = get_response_elements(AwsResponse, common_prefixes, prefix, Key),
+  {Prefixes, Keys} = list_objects(Bucket, Key, AwsConfig),
   case (((length(Keys) == 0) and (length(Prefixes) == 0)) or Recursive) of
     true ->
       lists:foreach(fun(File) ->
@@ -370,3 +380,24 @@ delete_s3_directory(Bucket, Key, Options, AwsConfig) ->
     false ->
       {error, not_empty}
   end.
+
+list_objects(Bucket, Prefix, AwsConfig) ->
+  list_objects(Bucket, Prefix, undefined, AwsConfig, [], []).
+
+list_objects(_Bucket, _Prefixes, [], _AwsConfig, Directories, Files) ->
+  {Directories, Files};
+list_objects(Bucket, Prefix, Marker, AwsConfig, Directories, Files) ->
+  Response = erlcloud_s3:list_objects(
+               Bucket,
+               [{delimiter, "/"}, {prefix, Prefix} | marker(Marker)],
+               AwsConfig),
+  list_objects(
+    Bucket,
+    Prefix,
+    proplists:get_value(next_marker, Response, []),
+    AwsConfig,
+    Directories ++ get_response_elements(Response, common_prefixes, prefix, Prefix),
+    Files ++ get_response_elements(Response, contents, key, Prefix)).
+
+marker(undefined) -> [];
+marker(Marker) -> [{marker, Marker}].

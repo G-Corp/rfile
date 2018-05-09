@@ -5,6 +5,7 @@
          ls/2
          , cp/3
          , rm/2
+         , diff/3
 
          , max_jobs/1
          , jobs/0
@@ -34,6 +35,7 @@
         % common
         recursive => true | false,
         copy_files_only => true | false,
+        copy_diff_only => true | false,
         retry_on_error => integer(),
         metadata => term(),
         callback => fun((atom(), [string() | binary()], {ok | error, term()}, term() | undefined) -> ok),
@@ -136,6 +138,22 @@ rm(Source, Options) ->
     JobData ->
       Ref = erlang:make_ref(),
       gen_server:cast(rfile_workers_queue, {{rm, JobData, Options}, Ref}),
+      {ok, Ref}
+  end.
+
+% @doc
+% Return the difference between two directories or files
+% @end
+-spec diff(Source::string() | binary(),
+           Destination::string() | binary(),
+           Options::options()) -> {ok, reference()} | {error, term()}.
+diff(Source, Destination, Options) ->
+  case find_provider(Source, Destination) of
+    {error, _Reason} = Error ->
+      Error;
+    JobData ->
+      Ref = erlang:make_ref(),
+      gen_server:cast(rfile_workers_queue, {{diff, JobData, Options}, Ref}),
       {ok, Ref}
   end.
 

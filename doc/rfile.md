@@ -56,7 +56,7 @@ options_list() = [{acl, <a href="#type-acl">acl()</a>} | {recursive, true | fals
 
 
 <pre><code>
-options_map() = #{acl =&gt; <a href="#type-acl">acl()</a>, recursive =&gt; true | false, copy_files_only =&gt; true | false, retry_on_error =&gt; integer(), metadata =&gt; term(), callback =&gt; fun((atom(), [string() | binary()], {ok | error, term()}, term() | undefined) -&gt; ok), aws =&gt; <a href="#type-aws">aws()</a>, source =&gt; #{aws =&gt; <a href="#type-aws">aws()</a>}, destination =&gt; #{aws =&gt; <a href="#type-aws">aws()</a>}}
+options_map() = #{acl =&gt; <a href="#type-acl">acl()</a>, recursive =&gt; true | false, copy_files_only =&gt; true | false, copy_diff_only =&gt; true | false, retry_on_error =&gt; integer(), metadata =&gt; term(), callback =&gt; fun((atom(), [string() | binary()], {ok | error, term()}, term() | undefined) -&gt; ok), aws =&gt; <a href="#type-aws">aws()</a>, source =&gt; #{aws =&gt; <a href="#type-aws">aws()</a>}, destination =&gt; #{aws =&gt; <a href="#type-aws">aws()</a>}}
 </code></pre>
 
 <a name="index"></a>
@@ -65,7 +65,8 @@ options_map() = #{acl =&gt; <a href="#type-acl">acl()</a>, recursive =&gt; true 
 
 
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#cp-3">cp/3</a></td><td>
-Copy files and directories.</td></tr><tr><td valign="top"><a href="#jobs-0">jobs/0</a></td><td>
+Copy files and directories.</td></tr><tr><td valign="top"><a href="#diff-3">diff/3</a></td><td>
+Return the difference between two directories or files.</td></tr><tr><td valign="top"><a href="#jobs-0">jobs/0</a></td><td>
 Return the number of queued jobs.</td></tr><tr><td valign="top"><a href="#ls-2">ls/2</a></td><td>
 List directory content.</td></tr><tr><td valign="top"><a href="#max_jobs-1">max_jobs/1</a></td><td>
 Update the maximum number of jobs.</td></tr><tr><td valign="top"><a href="#rm-2">rm/2</a></td><td>
@@ -88,6 +89,17 @@ cp(Source::string() | binary(), Destination::string() | binary() | [string() | b
 <br />
 
 Copy files and directories
+
+<a name="diff-3"></a>
+
+### diff/3 ###
+
+<pre><code>
+diff(Source::string() | binary(), Destination::string() | binary(), Options::<a href="#type-options">options()</a>) -&gt; {ok, reference()} | {error, term()}
+</code></pre>
+<br />
+
+Return the difference between two directories or files
 
 <a name="jobs-0"></a>
 

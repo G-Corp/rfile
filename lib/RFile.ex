@@ -24,4 +24,7 @@ defmodule RFile do
   def unquote(:"rm")(arg1, arg2) do
     :erlang.apply(:"rfile", :"rm", [arg1, arg2])
   end
+  def unquote(:"diff")(arg1, arg2, arg3) do
+    :erlang.apply(:"rfile", :"diff", [arg1, arg2, arg3])
+  end
 end

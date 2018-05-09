@@ -31,17 +31,13 @@ handle_call(_Request, _From, State) ->
   {reply, Reply, State}.
 
 % @hidden
-handle_cast(ls, #{args := #{provider := Provider, source := File}, options := #{from := From} = Options} = State) ->
+handle_cast(Action, #{args := #{provider := Provider, source := Source, destination := Destination}, options := #{from := From} = Options} = State) ->
   gen_server:reply(From, {ok, self()}),
-  terminate(Provider:ls(File, Options)),
+  terminate(erlang:apply(Provider, Action, [Source, Destination, Options])),
   {noreply, State};
-handle_cast(rm, #{args := #{provider := Provider, source := File}, options := #{from := From} = Options} = State) ->
+handle_cast(Action, #{args := #{provider := Provider, source := File}, options := #{from := From} = Options} = State) ->
   gen_server:reply(From, {ok, self()}),
-  terminate(Provider:rm(File, Options)),
-  {noreply, State};
-handle_cast(cp, #{args := #{provider := Provider, source := Source, destination := Destination}, options := #{from := From} = Options} = State) ->
-  gen_server:reply(From, {ok, self()}),
-  terminate(Provider:cp(Source, Destination, Options)),
+  terminate(erlang:apply(Provider, Action, [File, Options])),
   {noreply, State}.
 
 % @hidden

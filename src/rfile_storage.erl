@@ -6,5 +6,10 @@
 -callback rm(File :: map(), Options :: rfile:options()) ->
   {ok, string()} | {error, term()}.
 
--callback cp(Spurce :: map(), Destination :: map(), Options :: rfile:options()) ->
+-callback cp(Source :: map(), Destination :: map(), Options :: rfile:options()) ->
   {ok, string()} | {error, term()}.
+
+-callback diff(Source :: map(), Destination :: map(), Options :: rfile:options()) ->
+  {ok, #{miss => #{source => [string()],
+                   destination => [string()]},
+         differ => [string()]}} | {error, term()}.

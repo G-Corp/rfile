@@ -7,6 +7,7 @@
          ls/2
          , cp/3
          , rm/2
+         , diff/3
         ]).
 
 -export([
@@ -29,7 +30,7 @@ ls(#{file := SrcFile} = File, Options) ->
     _:{aws_error, {http_error, 404 , _, _}} ->
       {error, bucket_not_found};
     Error:Reason ->
-      lager:error("ls (~ts) error: ~p:~p", [SrcFile, Error, Reason]),
+      lager:error("ls (~ts) error: ~p:~p~n~p", [SrcFile, Error, Reason, erlang:get_stacktrace()]),
       {error, Reason}
   end.
 
@@ -58,7 +59,7 @@ rm(#{file := SrcFile} = File, Options) ->
         _:{aws_error, {http_error, 404 , _, _}} ->
           {error, bucket_not_found};
         Error:Reason ->
-          lager:error("rm (~ts) error: ~p:~p", [SrcFile, Error, Reason]),
+          lager:error("rm (~ts) error: ~p:~p~n~p", [SrcFile, Error, Reason, erlang:get_stacktrace()]),
           {error, Reason}
       end;
     _Key ->
@@ -99,6 +100,95 @@ cp(#{type := fs} = Source, #{type := aws} = Destination, Options) ->
   end;
 cp(_Source, _Destination, _Options) ->
   {error, not_supported}.
+
+diff(#{type := aws} = Source, #{type := aws} = Destination, Options) ->
+  case {get_diff_data(Source, Options),
+        get_diff_data(Destination, Options)} of
+    {{ok, {SrcDirectries, SrcFiles}},
+     {ok, {DestDirectories, DestFiles}}} ->
+      {ok, #{miss => #{source => get_miss([{SrcDirectries, DestDirectories}, {SrcFiles, DestFiles}]),
+                       destination => get_miss([{DestDirectories, SrcDirectries}, {DestFiles, SrcFiles}])},
+             differ => get_differ(SrcFiles, DestFiles)}};
+    {{error, _} = Error, _} ->
+      Error;
+    {_, {error, _} = Error} ->
+      Error
+  end;
+diff(#{type := aws} = _Source, #{type := fs} = _Destination, _Options) ->
+  {error, not_implemented};
+diff(#{type := fs} = _Source, #{type := aws} = _Destination, _Options) ->
+  {error, not_implemented};
+diff(_Source, _Destination, _Options) ->
+  {error, not_supported}.
+
+get_differ(Left, Right) ->
+  get_differ(Left, Right, []).
+get_differ([], _Right, Acc) -> Acc;
+get_differ([{File, Size}|Left], Right, Acc) ->
+  get_differ(
+    Left,
+    Right,
+    case lists:keyfind(File, 1, Right) of
+      {File, Size} -> Acc;
+      {File, _OtherSize} -> [File|Acc];
+      false -> Acc
+    end);
+get_differ([_|Left], Right, Acc) ->
+  get_differ(Left, Right, Acc).
+
+get_miss(Data) ->
+  get_miss(Data, []).
+get_miss([], Acc) ->
+  Acc;
+get_miss([{Left, Right}|Rest], Acc) ->
+  get_miss(Rest, get_miss(Left, Right, Acc)).
+get_miss(_Left, [], Acc) ->
+  Acc;
+get_miss(Left, [Current|Right], Acc) ->
+  case exist(Current, Left) of
+    true ->
+      get_miss(Left, Right, Acc);
+    {false, File} ->
+      get_miss(Left, Right, [File|Acc])
+  end.
+
+exist({File, _}, List) ->
+  case lists:member(File, List) of
+    true ->
+      true;
+    false ->
+      case lists:keyfind(File, 1, List) of
+        false -> {false, File};
+        _ -> true
+      end
+  end;
+exist(File, List) ->
+  case lists:member(File, List) of
+    true ->
+      true;
+    false ->
+      case lists:keyfind(File, 1, List) of
+        false -> {false, File};
+        _ -> true
+      end
+  end.
+
+get_diff_data(#{file := Src} = File, Options) ->
+  try
+    AwsConfig = get_aws_config(Options, source),
+    AwsPrefix = get_prefix(File),
+    {ok,
+     list_objects_with_size(
+       get_bucket(File),
+       AwsPrefix,
+       AwsConfig)}
+  catch
+    _:{aws_error, {http_error, 404 , _, _}} ->
+      {error, bucket_not_found};
+    Error:Reason ->
+      lager:error("diff (~ts) error: ~p:~p~n~p", [Src, Error, Reason, erlang:get_stacktrace()]),
+      {error, Reason}
+  end.
 
 % ---------------------------------------------------------------------------------------------------------------------
 
@@ -185,12 +275,12 @@ copy_file_s3_to_fs(SourceBucket, SourceKey, Destination, _Options, AwsConfig) ->
     _:{aws_error, {http_error, 404 , _, _}} ->
       {error, invalide_file};
     Error:Reason ->
-      lager:error("cp (s3://~ts/~ts -> ~ts) error: ~p:~p", [SourceBucket, SourceKey, Destination, Error, Reason]),
+      lager:error("cp (s3://~ts/~ts -> ~ts) error: ~p:~p~n~p", [SourceBucket, SourceKey, Destination, Error, Reason, erlang:get_stacktrace()]),
       {error, Reason}
   end.
 
 copy_file_fs_to_s3(Source, DestinationBucket, DestinationKey, Options, AwsConfig) ->
-  lager:debug("COPY ~ts TO s3://~ts/~ts", [Source, DestinationBucket, DestinationKey]),
+  lager:info("COPY ~ts TO s3://~ts/~ts", [Source, DestinationBucket, DestinationKey]),
   AwsOptions = aws_options(Options, [acl]),
   case file:read_file(Source) of
     {ok, Data} ->
@@ -199,7 +289,7 @@ copy_file_fs_to_s3(Source, DestinationBucket, DestinationKey, Options, AwsConfig
         {ok, "s3://" ++ DestinationBucket ++ "/" ++ DestinationKey}
       catch
         Error:Reason ->
-          lager:error("cp (~ts -> s3://~ts/~ts) error: ~p:~p", [Source, DestinationBucket, DestinationKey, Error, Reason]),
+          lager:error("cp (~ts -> s3://~ts/~ts) error: ~p:~p~n~p", [Source, DestinationBucket, DestinationKey, Error, Reason, erlang:get_stacktrace()]),
           {error, Reason}
       end;
     FSError ->
@@ -207,7 +297,7 @@ copy_file_fs_to_s3(Source, DestinationBucket, DestinationKey, Options, AwsConfig
   end.
 
 copy_file_s3_to_s3(SourceBucket, SourceKey, DestinationBucket, DestinationKey, Options, AwsConfig) ->
-  lager:debug("COPY s3://~ts/~ts TO s3://~ts/~ts", [SourceBucket, SourceKey, DestinationBucket, DestinationKey]),
+  lager:info("COPY s3://~ts/~ts TO s3://~ts/~ts", [SourceBucket, SourceKey, DestinationBucket, DestinationKey]),
   AwsOptions = aws_options(Options, [acl]),
   try
     erlcloud_s3:copy_object(
@@ -220,7 +310,7 @@ copy_file_s3_to_s3(SourceBucket, SourceKey, DestinationBucket, DestinationKey, O
     _:{aws_error, {http_error, 404 , _, _}} ->
       {error, invalide_file};
     Error:Reason ->
-      lager:error("cp (s3://~ts/~ts -> s3://~ts/~ts) error: ~p:~p", [SourceBucket, SourceKey, DestinationBucket, DestinationKey, Error, Reason]),
+      lager:error("cp (s3://~ts/~ts -> s3://~ts/~ts) error: ~p:~p~n~p", [SourceBucket, SourceKey, DestinationBucket, DestinationKey, Error, Reason, erlang:get_stacktrace()]),
       {error, Reason}
   end.
 
@@ -253,12 +343,25 @@ copy_directory_s3_to_s3(SourceBucket, SourceKey, DestinationBucket, DestinationK
     _:{aws_error, {http_error, 404 , _, _}} ->
       {error, invalide_file};
     Error:Reason ->
-      lager:error("cp (s3://~ts/~ts -> s3://~ts/~ts) error: ~p:~p", [SourceBucket, SourceKey, DestinationBucket, DestinationKey, Error, Reason]),
+      lager:error("cp (s3://~ts/~ts -> s3://~ts/~ts) error: ~p:~p~n~p", [SourceBucket, SourceKey, DestinationBucket, DestinationKey, Error, Reason, erlang:get_stacktrace()]),
       {error, Reason}
   end.
 
 copy_recursive_s3_to_s3(SourceBucket, SourceKey, DestinationBucket, DestinationKey, Options, AwsConfig) ->
-  {Directories, Files} = list_objects(SourceBucket, SourceKey, AwsConfig),
+  {
+   Directories,
+   Files
+  } = case maps:get(copy_diff_only, Options, false) of
+        false ->
+          list_objects(SourceBucket, SourceKey, AwsConfig);
+        true ->
+          {SrcDirs, SrcFiles} = list_objects_with_size(SourceBucket, SourceKey, AwsConfig),
+          {DestDirs, DestFiles} = list_objects_with_size(DestinationBucket, DestinationKey, AwsConfig),
+          MissDirs = get_miss([{DestDirs, SrcDirs}]),
+          MissFiles = get_miss([{DestFiles, SrcFiles}]),
+          DifferFiles = get_differ(SrcFiles, DestFiles),
+          {MissDirs, MissFiles ++ DifferFiles}
+      end,
   case copy_objects_s3_to_s3(
          Files,
          SourceBucket,
@@ -339,6 +442,14 @@ get_aws_credentials(Options, Who) ->
       undefined
   end.
 
+get_response_files(AwsResponse, AwsPrefix) ->
+  get_response_elements(AwsResponse, contents, key, AwsPrefix).
+get_response_files_with_size(AwsResponse, AwsPrefix) ->
+  lists:foldl(fun({_, _} = File, Acc) -> [File|Acc];
+                 (_, Acc) -> Acc
+              end, [], get_response_elements(AwsResponse, contents, [key, size], AwsPrefix)).
+get_response_directories(AwsResponse, AwsPrefix) ->
+  get_response_elements(AwsResponse, common_prefixes, prefix, AwsPrefix).
 get_response_elements(AwsResponse, Global, Local, AwsPrefix) ->
   lager:debug("Get response elements from ~p", [AwsResponse]),
   case lists:keyfind(Global, 1, AwsResponse) of
@@ -346,16 +457,36 @@ get_response_elements(AwsResponse, Global, Local, AwsPrefix) ->
       [];
     {Global, Prefixes} ->
       lists:foldr(fun(Prefix, Acc) ->
-                      case lists:keyfind(Local, 1, Prefix) of
-                        {Local, Data} ->
-                          case re:replace(Data, AwsPrefix, "", [{return, list}]) of
-                            "" -> Acc;
-                            Elem -> [Elem|Acc]
-                          end;
+                      case is_list(Local) of
+                        true ->
+                          [list_to_tuple(
+                             lists:foldr(fun(L, Acc0) ->
+                                             case get_local(Prefix, L, AwsPrefix) of
+                                               {true, Elem} -> [Elem|Acc0];
+                                               false -> Acc0
+                                             end
+                                         end, [], Local))
+                           |Acc];
                         false ->
-                          Acc
+                          case get_local(Prefix, Local, AwsPrefix) of
+                            {true, Elem} -> [Elem|Acc];
+                            false -> Acc
+                          end
                       end
                   end, [], Prefixes)
+  end.
+
+get_local(Prefix, Local, AwsPrefix) ->
+  case lists:keyfind(Local, 1, Prefix) of
+    {Local, Data} when is_list(Data) ->
+      case re:replace(Data, AwsPrefix, "", [{return, list}]) of
+        "" -> false;
+        Elem -> {true, Elem}
+      end;
+    {Local, Data} ->
+      {true, Data};
+    false ->
+      false
   end.
 
 delete_s3_file(Bucket, Key, AwsConfig) ->
@@ -382,11 +513,14 @@ delete_s3_directory(Bucket, Key, Options, AwsConfig) ->
   end.
 
 list_objects(Bucket, Prefix, AwsConfig) ->
-  list_objects(Bucket, Prefix, undefined, AwsConfig, [], []).
+  list_objects(Bucket, Prefix, undefined, AwsConfig, fun get_response_directories/2, fun get_response_files/2, [], []).
 
-list_objects(_Bucket, _Prefixes, [], _AwsConfig, Directories, Files) ->
+list_objects_with_size(Bucket, Prefix, AwsConfig) ->
+  list_objects(Bucket, Prefix, undefined, AwsConfig, fun get_response_directories/2, fun get_response_files_with_size/2, [], []).
+
+list_objects(_Bucket, _Prefixes, [], _AwsConfig, _GetDirectories, _GetFiles, Directories, Files) ->
   {Directories, Files};
-list_objects(Bucket, Prefix, Marker, AwsConfig, Directories, Files) ->
+list_objects(Bucket, Prefix, Marker, AwsConfig, GetDirectories, GetFiles, Directories, Files) ->
   Response = erlcloud_s3:list_objects(
                Bucket,
                [{delimiter, "/"}, {prefix, Prefix} | marker(Marker)],
@@ -396,8 +530,10 @@ list_objects(Bucket, Prefix, Marker, AwsConfig, Directories, Files) ->
     Prefix,
     proplists:get_value(next_marker, Response, []),
     AwsConfig,
-    Directories ++ get_response_elements(Response, common_prefixes, prefix, Prefix),
-    Files ++ get_response_elements(Response, contents, key, Prefix)).
+    GetDirectories,
+    GetFiles,
+    Directories ++ erlang:apply(GetDirectories, [Response, Prefix]),
+    Files ++ erlang:apply(GetFiles, [Response, Prefix])).
 
 marker(undefined) -> [];
 marker(Marker) -> [{marker, Marker}].

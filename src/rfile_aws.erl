@@ -422,7 +422,7 @@ get_prefix(#{path := Path}) ->
 get_aws_config(Options, Who) ->
   (case get_aws_credentials(Options, Who) of
      #{access_key_id := AccessKeyID, secret_access_key := SecretAccessKey} ->
-       erlcloud_s3:new(AccessKeyID, SecretAccessKey);
+       erlcloud_s3:new(bucs:to_string(AccessKeyID), bucs:to_string(SecretAccessKey));
      _ ->
        #aws_config{}
    end)#aws_config{s3_follow_redirect = true}.

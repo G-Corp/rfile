@@ -2,7 +2,7 @@
   "base16": {:hex, :base16, "1.0.0", "283644e2b21bd5915acb7178bed7851fb07c6e5749b8fad68a53c501092176d9", [:rebar3], [], "hexpm"},
   "bucs": {:hex, :bucs, "1.0.15", "44fc10dc863184fb99b1b7d25af5b1fa06355d0003800629668fbc37f3f9b6bd", [:make, :mix, :rebar3], [], "hexpm"},
   "eini": {:hex, :eini, "1.2.4", "abd64a0533398a6d714d21219bb85f2d41fdb42665ac4080939b7bfa8e55f386", [:rebar3], [], "hexpm"},
-  "erlcloud": {:hex, :erlcloud, "3.1.6", "6536b4543c588a8cdf1ebc7c4c5b6b435d3feca51d4f7a0556220b00303c9354", [:rebar3], [{:base16, "1.0.0", [hex: :base16, repo: "hexpm", optional: false]}, {:eini, "1.2.4", [hex: :eini, repo: "hexpm", optional: false]}, {:jsx, "2.8.0", [hex: :jsx, repo: "hexpm", optional: false]}, {:lhttpc, "1.5.4", [hex: :lhttpc, repo: "hexpm", optional: false]}], "hexpm"},
+  "erlcloud": {:hex, :erlcloud, "3.1.7", "482abf46c7afc023557022c0040a681063368d9df4e4eb8a73a5b7cd17a6c47e", [:rebar3], [{:base16, "1.0.0", [hex: :base16, repo: "hexpm", optional: false]}, {:eini, "1.2.4", [hex: :eini, repo: "hexpm", optional: false]}, {:jsx, "2.8.0", [hex: :jsx, repo: "hexpm", optional: false]}, {:lhttpc, "1.5.4", [hex: :lhttpc, repo: "hexpm", optional: false]}], "hexpm"},
   "goldrush": {:hex, :goldrush, "0.1.9", "f06e5d5f1277da5c413e84d5a2924174182fb108dabb39d5ec548b27424cd106", [:rebar3], [], "hexpm"},
   "jsx": {:hex, :jsx, "2.8.0", "749bec6d205c694ae1786d62cea6cc45a390437e24835fd16d12d74f07097727", [:mix, :rebar], [], "hexpm"},
   "lager": {:hex, :lager, "3.6.2", "2c72950a0e75ffd927dd35bc85ea30e7680a264c4bbd08b328250871ac456cc2", [:rebar3], [{:goldrush, "0.1.9", [hex: :goldrush, repo: "hexpm", optional: false]}], "hexpm"},

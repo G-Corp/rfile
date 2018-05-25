@@ -29,6 +29,7 @@ defmodule Rfile.Mixfile do
     [
       {:lager, "~> 3.6.1"},
       {:bucs, "~> 1.0.15"},
+      {:doteki, "~> 1.0.6"},
       {:erlcloud, "~> 3.1.4"}
     ]
   end

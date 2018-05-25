@@ -30,7 +30,7 @@ init(_Args) ->
      timer => erlang:send_after(?INITIAL_START_INTERVAL, self(), start_job),
      queue => queue:new(),
      active_jobs => #{},
-     max_jobs => ?DEFAULT_MAX_JOBS
+     max_jobs => doteki:get_as_integer([rfile, max_jobs], ?DEFAULT_MAX_JOBS)
     }}.
 
 % @hidden

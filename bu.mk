@@ -1,5 +1,5 @@
 # Copyright (c) 2013-2015, Loïc Hoguin <essen@ninenines.eu>
-# Copyright (c) 2016, Grégoire Lejeune
+# Copyright (c) 2016-2017, Grégoire Lejeune
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -64,6 +64,13 @@ define newline
 endef
 
 # Template
+
+# define internet
+#   echo -e "GET http://google.com HTTP/1.0\n\n" | nc google.com 80 > /dev/null 2>&1
+#   echo $?
+# endef
+# 
+# INTERNET=$(shell $(call internet))
 
 define render_template
   $(verbose) printf -- '$(subst $(newline),\n,$(subst %,%%,$(subst ','\'',$(subst $(tab),$(WS),$(call $(1))))))\n' > $(2)
@@ -168,12 +175,22 @@ xref:
 XREF=xref
 endif
 
-compile-erl:
+update-packages-registry: ## Updage packages registry
 	$(verbose) $(REBAR) as $(REBAR_ENV) update
+
+ifdef NO_REGISTRY_UPDATE
+compile-erl:
+else
+compile-erl: update-packages-registry
+endif
 	$(verbose) $(REBAR) as $(REBAR_ENV) compile
 
 tests: ## Run tests
+ifndef TEST_MODULES
 	$(verbose) $(REBAR) eunit
+else
+	$(verbose) $(REBAR) eunit --module=$(TEST_MODULES)
+endif
 
 doc:: ## Generate doc
 ifndef NO_DOC
@@ -188,9 +205,9 @@ distclean:: $(DISTCLEAN) ## Clean the distribution
 
 dev: compile-erl
 ifdef ERL_CONFIG
-	$(verbose) erl -pa _build/$(REBAR_ENV)/lib/*/ebin _build/$(REBAR_ENV)/lib/*/include -config ${ERL_CONFIG} -name ${NODE_NAME}@${NODE_HOST} -setcookie ${current_dir}
+	$(verbose) erl -pa $(CURDIR)/_build/$(REBAR_ENV)/lib/*/ebin $(CURDIR)/_build/$(REBAR_ENV)/lib/*/include -config ${ERL_CONFIG} -name ${NODE_NAME}@${NODE_HOST} -setcookie ${current_dir}
 else
-	$(verbose) erl -pa _build/$(REBAR_ENV)/lib/*/ebin _build/$(REBAR_ENV)/lib/*/include -name ${NODE_NAME}@${NODE_HOST} -setcookie ${current_dir}
+	$(verbose) erl -pa $(CURDIR)/_build/$(REBAR_ENV)/lib/*/ebin $(CURDIR)/_build/$(REBAR_ENV)/lib/*/include -name ${NODE_NAME}@${NODE_HOST} -setcookie ${current_dir}
 endif
 
 dist-erl: clean compile-erl tests $(LINT) $(XREF) doc
@@ -221,7 +238,7 @@ local.rebar: ## Install rebar for Mix
 
 # Update
 
-BU_MK_REPO ?= https://github.com/botsunit/bu.mk
+BU_MK_REPO ?= https://github.com/G-Corp/bu.mk
 BU_MK_COMMIT ?=
 BU_MK_BUILD_DIR ?= .bu.mk.build
 
@@ -237,4 +254,3 @@ endif
 
 help: ## Show this help.
 	$(verbose) echo "$$(grep -hE '^\S+:.*##' $(MAKEFILE_LIST) | sed -e 's/:.*##\s*/:/' -e 's/^\(.\+\):\(.*\)/\\033[33m\1\\033[m:\2/' | column -c2 -t -s :)"
-

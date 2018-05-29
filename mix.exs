@@ -8,7 +8,7 @@ defmodule Rfile.Mixfile do
   def project do
     [
       app: :rfile,
-      version: "0.1.0",
+      version: "0.2.0",
       elixir: "~> 1.2",
       build_embedded: Mix.env == :prod,
       start_permanent: Mix.env == :prod,
@@ -28,8 +28,8 @@ defmodule Rfile.Mixfile do
   defp deps do
     [
       {:lager, "~> 3.6.1"},
-      {:bucs, "~> 1.0.15"},
-      {:doteki, "~> 1.0.6"},
+      {:bucs, git: "git://github.com/G-Corp/bucs.git", branch: "master"},
+      {:doteki, git: "git://github.com/G-Corp/doteki.git", branch: "master"},
       {:erlcloud, "~> 3.1.4"}
     ]
   end

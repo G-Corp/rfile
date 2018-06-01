@@ -42,19 +42,25 @@ apply_callback(#{options := #{callback := Callback} = Options,
                  response := Response,
                  action := Action,
                  args := #{source := #{file := SrcFile}} = Args}) when is_function(Callback, 4) ->
-  erlang:apply(
-    Callback,
-    [Action,
-     case maps:get(destination, Args, undefined) of
-       Destinations when is_list(Destinations) ->
-         [SrcFile, [File || #{file := File} <- Destinations]];
-       #{file := DestFile} ->
-         [SrcFile, DestFile];
-       _ ->
-         [SrcFile]
-     end,
-     Response,
-     maps:get(metadata, Options, undefined)]);
+  try
+    erlang:apply(
+      Callback,
+      [Action,
+       case maps:get(destination, Args, undefined) of
+         Destinations when is_list(Destinations) ->
+           [SrcFile, [File || #{file := File} <- Destinations]];
+         #{file := DestFile} ->
+           [SrcFile, DestFile];
+         _ ->
+           [SrcFile]
+       end,
+       Response,
+       maps:get(metadata, Options, undefined)])
+  catch
+    Error:Reason ->
+      lager:error("Callback error ~p: ~p:~p", [Callback, Error, Reason]),
+      exit(Reason)
+  end;
 apply_callback(#{options := #{callback := Callback} = Options,
                  response := Response,
                  action := Action,

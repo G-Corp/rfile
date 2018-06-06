@@ -6,6 +6,7 @@
          , cp/3
          , rm/2
          , diff/3
+         , chmod/2
 
          , max_jobs/1
          , jobs/0
@@ -103,6 +104,19 @@ ls(Source, Options) ->
     JobData ->
       Ref = erlang:make_ref(),
       gen_server:cast(rfile_workers_queue, {{ls, JobData, Options}, Ref}),
+      {ok, Ref}
+  end.
+
+% @doc
+% Change permissions (ACL)
+% @end
+chmod(Source, Options) ->
+  case find_provider(Source) of
+    {error, _Reason} = Error ->
+      Error;
+    JobData ->
+      Ref = erlang:make_ref(),
+      gen_server:cast(rfile_workers_queue, {{chmod, JobData, Options}, Ref}),
       {ok, Ref}
   end.
 

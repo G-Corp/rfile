@@ -8,6 +8,7 @@
          , cp/3
          , rm/2
          , diff/3
+         , chmod/2
         ]).
 
 -export([
@@ -15,14 +16,15 @@
          , copy_directory_s3_to_s3/6
         ]).
 
-ls(#{file := SrcFile} = File, Options) ->
+ls(#{file := SrcFile} = File, #{recursive := Recursive} = Options) ->
   AwsConfig = get_aws_config(Options, source),
   AwsPrefix = get_prefix(File),
   try
     {Directories, Files} = list_objects(
                              get_bucket(File),
                              AwsPrefix,
-                             AwsConfig),
+                             AwsConfig,
+                             Recursive),
     {ok,
      #{directories => Directories,
        files => Files}}
@@ -33,6 +35,52 @@ ls(#{file := SrcFile} = File, Options) ->
       lager:error("ls (~ts) error: ~p:~p~n~p", [SrcFile, Error, Reason, erlang:get_stacktrace()]),
       {error, Reason}
   end.
+
+chmod(#{file := SrcFile} = File, Options) ->
+  case ls(File, Options) of
+    {ok, #{directories := _Directories,
+           files := Files}} ->
+      AwsConfig = get_aws_config(Options, source),
+      case set_act(Files, get_bucket(File), Options, AwsConfig) of
+        ok ->
+          {ok, SrcFile};
+        Error ->
+          Error
+      end;
+    Error ->
+      Error
+  end.
+
+set_act([], _Bucket, _Options, _AwsConfig) ->
+  ok;
+set_act([File|Rest], Bucket, Options, AwsConfig) ->
+  ACL = erlcloud_s3:get_object_acl(Bucket, File, AwsConfig),
+  error_logger:info_msg("====> ~p", [ACL]),
+  case erlcloud_s3:set_object_acl(Bucket, File, permissions(Options, ACL), AwsConfig) of
+    X ->
+      error_logger:info_msg("~p ============> ~p", [File, X]),
+      ok %set_act(Rest, Bucket, Permission, AwsConfig)
+  end.
+
+permissions(_Options, ACL) ->
+  [{owner, proplists:get_value(owner, ACL)},
+   {access_control_list, [
+                          [{grantee, [{uri, "http://acs.amazonaws.com/groups/global/AllUsers"}]},
+                           {permission, read}]
+                          |proplists:get_value(access_control_list, ACL)
+                         ]}].
+
+
+% [{owner,[{id,"855674acea3ffb75d90ee00564ab2c29dec8eed22f6dd268539afbe10ec4c375"}]},
+%  {access_control_list,[[
+%                         {grantee,[{type,"CanonicalUser"},
+%                                   {id,"855674acea3ffb75d90ee00564ab2c29dec8eed22f6dd268539afbe10ec4c375"}]},
+%                         {permission,full_control}
+%                        ],
+%                        [
+%                         {grantee,[{type,"Group"},
+%                                   {uri,"http://acs.amazonaws.com/groups/global/AllUsers"}]},
+%                         {permission,read}]]}]
 
 rm(#{file := SrcFile} = File, Options) ->
   AwsConfig = get_aws_config(Options, source),
@@ -513,7 +561,22 @@ delete_s3_directory(Bucket, Key, Options, AwsConfig) ->
   end.
 
 list_objects(Bucket, Prefix, AwsConfig) ->
+  list_objects(Bucket, Prefix, AwsConfig, false).
+
+list_objects(Bucket, Prefix, AwsConfig, true) ->
+  {[], list_objects_r(Bucket, [Prefix], AwsConfig, true)};
+list_objects(Bucket, Prefix, AwsConfig, false) ->
   list_objects(Bucket, Prefix, undefined, AwsConfig, fun get_response_directories/2, fun get_response_files/2, [], []).
+
+list_objects_r(_Bucket, [], _AwsConfig, true) ->
+  [];
+list_objects_r(Bucket, [Prefix|Rest], AwsConfig, true) ->
+  case list_objects(Bucket, Prefix, undefined, AwsConfig, fun get_response_directories/2, fun get_response_files/2, [], []) of
+    {[], Keys} ->
+      [Prefix ++ K || K <- Keys];
+    {Prefixes, Keys} ->
+      [Prefix ++ K || K <- Keys] ++ list_objects_r(Bucket, [Prefix ++ P||P <- Prefixes], AwsConfig, true)
+  end ++ list_objects_r(Bucket, Rest, AwsConfig, true).
 
 list_objects_with_size(Bucket, Prefix, AwsConfig) ->
   list_objects(Bucket, Prefix, undefined, AwsConfig, fun get_response_directories/2, fun get_response_files_with_size/2, [], []).

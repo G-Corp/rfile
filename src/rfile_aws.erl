@@ -282,6 +282,61 @@ copy_file_s3_to_fs(SourceBucket, SourceKey, Destination, _Options, AwsConfig) ->
 copy_file_fs_to_s3(Source, DestinationBucket, DestinationKey, Options, AwsConfig) ->
   lager:info("COPY ~ts TO s3://~ts/~ts", [Source, DestinationBucket, DestinationKey]),
   AwsOptions = aws_options(Options, [acl]),
+  MaxFileSize = 5000000000,
+  FileSize = filelib:file_size(Source),
+  if
+    FileSize > MaxFileSize ->
+      lager:info("Starting multipart upload"),
+      do_copy_file_fs_to_s3_multiparts(Source, DestinationBucket, DestinationKey, AwsConfig, AwsOptions);
+    true ->
+      lager:info("Starting single upload"),
+      do_copy_file_fs_to_s3(Source, DestinationBucket, DestinationKey, AwsConfig, AwsOptions)
+  end.
+
+do_copy_file_fs_to_s3_multiparts(Source, DestinationBucket, DestinationKey, AwsConfig, AwsOptions) ->
+  case erlcloud_s3:start_multipart(DestinationBucket, DestinationKey, AwsOptions, [], AwsConfig) of
+    {ok, PropsList} ->
+      UploadId = proplists:get_value(uploadId, PropsList),
+      case file:open(Source, [read]) of
+        {ok, IoDevice} ->
+          lager:info("File is open"),
+          upload_part(DestinationBucket, DestinationKey, UploadId, 1, AwsOptions, AwsConfig, IoDevice);
+        {error, Reason} ->
+          erlcloud_s3:abort_multipart(DestinationBucket, DestinationKey, UploadId, AwsOptions, [], AwsConfig),
+          {error, Reason}
+      end;
+    {error, Reason} ->
+      {error, Reason}
+  end.
+
+upload_part(DestinationBucket, DestinationKey, UploadId, PartNumber, AwsOptions, AwsConfig, IoDevice) ->
+  case file:read(IoDevice, 5000000) of
+    {ok, Data} ->
+      lager:info("Uploading part ~w", [PartNumber]),
+      case erlcloud_s3:upload_part(DestinationBucket, DestinationKey, UploadId, PartNumber, Data, [], AwsConfig) of
+        {ok, _PropsList} ->
+          lager:info("Uploaded part ~w", [PartNumber]),
+          upload_part(DestinationBucket, DestinationKey, UploadId, PartNumber + 1, AwsOptions, AwsConfig, IoDevice);
+        {error, Reason} ->
+          erlcloud_s3:abort_multipart(DestinationBucket, DestinationKey, UploadId, AwsOptions, [], AwsConfig),
+          {error, Reason}
+      end;
+    eof ->
+      case file:close(IoDevice) of
+        ok ->
+          lager:info("File is closed"),
+          erlcloud_s3:complete_multipart(DestinationBucket, DestinationKey, UploadId, [], [], AwsConfig);
+        {error, Reason} ->
+          lager:info("Failed to close the file"),
+          erlcloud_s3:abort_multipart(DestinationBucket, DestinationKey, UploadId, AwsOptions, [], AwsConfig),
+          {error, Reason}
+      end;
+    {error, Reason} ->
+      erlcloud_s3:abort_multipart(DestinationBucket, DestinationKey, UploadId, AwsOptions, [], AwsConfig),
+      {error, Reason}
+  end.
+
+do_copy_file_fs_to_s3(Source, DestinationBucket, DestinationKey, AwsConfig, AwsOptions) ->
   case file:read_file(Source) of
     {ok, Data} ->
       try

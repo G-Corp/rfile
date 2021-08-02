@@ -27,9 +27,9 @@ defmodule Rfile.Mixfile do
 
   defp deps do
     [
-      {:lager, "~> 3.6.1"},
-      {:bucs, git: "git://github.com/G-Corp/bucs.git", branch: "master"},
-      {:doteki, git: "git://github.com/G-Corp/doteki.git", branch: "master"},
+      {:bucs, "~> 1.1.0"},
+      {:lager, "~> 3.9"},
+      {:doteki, git: "git://github.com/G-Corp/doteki.git", tag: "1.1.0"},
       {:erlcloud, "~> 3.1.4"}
     ]
   end
